@@ -11,7 +11,7 @@ per WebRTC direkt zwischen euren Geräten, ein Server ist nicht beteiligt.
 | Spiel | Worum es geht | Spieler |
 |---|---|---|
 | [Fragen-Impostor](https://ahsumasearch-afk.github.io/impostor/) | Alle beantworten dieselbe Frage – einer nicht. Findet den Lügner. | 3–12 |
-| [Mind-Match](./mind-match/) | Der King antwortet zuerst, alle anderen müssen etwas anderes sagen. | 3–12 |
+| [Mind-Match](./mind-match/) | Der King antwortet zuerst, alle anderen müssen etwas anderes sagen. | 2–12 |
 
 ## Mind-Match – die Regeln
 
@@ -25,9 +25,17 @@ per WebRTC direkt zwischen euren Geräten, ein Server ist nicht beteiligt.
 8. Hält mindestens einer durch → alle außer dem King bekommen **+1 Punkt**.
 
 Der Host stellt im Warteraum Rundenzahl, Fragen pro Runde, Leben, Zeitlimits und
-die Fragen-Kategorien ein. Groß- und Kleinschreibung, Satzzeichen und ein
-führender Artikel werden beim Vergleich ignoriert – „Der Hund" und „hund"
-zählen als dieselbe Antwort.
+die Fragen-Kategorien ein.
+
+Beim Vergleich zählt die Schreibweise nicht: Groß- und Kleinschreibung, Umlaute
+und ß, Satzzeichen, ein führender Artikel, Mehrzahl-Endungen und kleine
+Vertipper werden ignoriert; Zahlwörter gelten wie Ziffern. „Der Hund", „hund"
+und „Hunde" sind dieselbe Antwort, ebenso „zwei" und „2". Kurze Wörter, die sich
+nur in einem Buchstaben unterscheiden, bleiben getrennt – „Hund" und „Bund"
+zählen nicht als Treffer.
+
+Die Fragen bleiben bewusst unpersönlich: keine Frage verlangt, jemanden aus dem
+eigenen Umfeld zu nennen oder etwas Privates preiszugeben.
 
 ## Aufbau
 
@@ -36,7 +44,7 @@ index.html          Hub mit der Spielauswahl
 mind-match/         das Spiel (statisch, kein Build)
   index.html
   css/style.css
-  js/questions.js   374 Fragen in 17 Kategorien, leicht bis schwer
+  js/questions.js   459 Fragen in 17 Kategorien, vier Schwierigkeitsstufen
   js/core.js        Identität, Emojis, Farben, Hilfsfunktionen
   js/host.js        Spiellogik – der Host ist der Spielserver
   js/net.js         Verbindungen über PeerJS
@@ -50,3 +58,24 @@ mind-match/         das Spiel (statisch, kein Build)
 Bei jeder Änderung wird die Versionsnummer in `mind-match/index.html`
 hochgezählt (`?v=…` an allen Dateien), damit niemand eine Mischung aus alten
 und neuen Dateien lädt.
+
+
+## Verbindung
+
+Die Geräte reden direkt miteinander (WebRTC). Damit sie sich über verschiedene
+Netze hinweg finden, fragen sie mehrere STUN-Server nach ihrer öffentlichen
+Adresse – das genügt in den allermeisten Heim- und Mobilfunknetzen.
+
+Wo ein Router gar keine direkte Verbindung zulässt (strenge Firmen- und
+Gästenetze, manche Mobilfunkanschlüsse), muss der Datenstrom über einen
+Relay-Server (TURN) laufen. Einen dauerhaft verlässlichen gibt es nicht
+kostenlos ohne Konto. Eigene Zugangsdaten lassen sich auf zwei Wegen
+hinterlegen:
+
+* dauerhaft für alle: in `mind-match/js/net.js` in die Liste `TURN` eintragen
+* nur für ein Gerät: **Verbindung testen** auf der Startseite → *Eigenes Relay
+  hinterlegen*
+
+Der Verbindungstest zeigt außerdem, ob der Treffpunkt-Server erreichbar ist und
+ob das Gerät von außen gefunden wird – damit lässt sich einkreisen, woran es
+hakt, wenn ein Spiel über Netzgrenzen hinweg nicht zustande kommt.

@@ -147,14 +147,62 @@ function zieheFragen(anzahl){
   return gezogen.map(i=>({text:FRAGEN[i][0], kat:FRAGEN[i][1], schwer:FRAGEN[i][2]}));
 }
 
-/* Antworten vergleichbar machen: Gross- und Kleinschreibung, Satzzeichen,
-   doppelte Leerzeichen und ein fuehrender Artikel sollen keine Rolle spielen. */
+/* --- Antworten vergleichen -------------------------------------------
+
+   Der King und ein Mitspieler meinen dasselbe, schreiben es aber anders auf.
+   Wuerde das als "nicht getroffen" durchgehen, koennte sich jeder mit einem
+   Tippfehler retten und niemand verlaere je ein Leben. Darum wird grosszuegig
+   verglichen: Gross- und Kleinschreibung, Umlaute, Satzzeichen, Artikel,
+   Mehrzahl und kleine Vertipper zaehlen nicht.                            */
+
+/* Zahlwoerter werden zu Ziffern – "zwei" und "2" sind dieselbe Antwort. */
+const ZAHLWORT={null:0,"null":0,"eins":1,"ein":1,"eine":1,"zwei":2,"drei":3,"vier":4,
+  "fuenf":5,"sechs":6,"sieben":7,"acht":8,"neun":9,"zehn":10,"elf":11,"zwoelf":12,
+  "dreizehn":13,"vierzehn":14,"fuenfzehn":15,"sechzehn":16,"siebzehn":17,"achtzehn":18,
+  "neunzehn":19,"zwanzig":20,"dreissig":30,"vierzig":40,"fuenfzig":50,"hundert":100,"tausend":1000};
+
 function normal(s){
-  return String(s||"").toLowerCase()
-    .replace(/[.,!?;:"'`´()\[\]-]/g," ")
+  let t=String(s||"").toLowerCase()
+    .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
+    .replace(/[^a-z0-9]+/g," ")                 // alles andere ist Trennzeichen
     .replace(/\s+/g," ").trim()
     .replace(/^(der|die|das|ein|eine|einen|einem|einer|den|dem)\s+/,"")
     .trim();
+  /* "ja klar" und "ja" sollen dasselbe sein – bei Ja/Nein-Fragen zaehlt nur das erste Wort. */
+  if(/^(ja|nein|doch)\b/.test(t)) return t.split(" ")[0].replace("doch","ja");
+  if(Object.prototype.hasOwnProperty.call(ZAHLWORT,t)) return String(ZAHLWORT[t]);
+  return t;
+}
+
+/* Wie viele Zeichen muesste man aendern, um aus a b zu machen? */
+function abstand(a,b){
+  if(a===b) return 0;
+  const n=a.length, m=b.length;
+  if(!n||!m) return n||m;
+  let vor=new Array(m+1);
+  for(let j=0;j<=m;j++) vor[j]=j;
+  for(let i=1;i<=n;i++){
+    const jetzt=[i];
+    for(let j=1;j<=m;j++)
+      jetzt[j]=Math.min(vor[j]+1, jetzt[j-1]+1, vor[j-1]+(a[i-1]===b[j-1]?0:1));
+    vor=jetzt;
+  }
+  return vor[m];
+}
+
+/* Mehrzahl und Beugung abschneiden: Hund / Hunde / Hunden. */
+function stamm(w){ return w.length>=5 ? w.replace(/(en|er|es|e|n|s)$/,"") : w; }
+
+function passt(a,b){
+  a=normal(a); b=normal(b);
+  if(!a||!b) return false;
+  if(a===b) return true;
+  if(a.length>=4 && b.length>=4 && stamm(a)===stamm(b)) return true;
+  /* Vertipper nur bei laengeren Woertern durchgehen lassen – sonst waeren
+     "Hund" und "Bund" oder "Birne" und "Birke" ploetzlich dasselbe. */
+  const lang=Math.max(a.length,b.length);
+  const erlaubt = lang>=10 ? 2 : lang>=6 ? 1 : 0;
+  return erlaubt>0 && abstand(a,b)<=erlaubt;
 }
 
 function setDeadline(phase){
@@ -213,9 +261,9 @@ function pruefeAntworten(force){
 
 /* Vergleich mit dem King, Leben abziehen, Ergebnis festhalten. */
 function aufdecken(){
-  const kingA=normal(H.kingAntworten[H.qi]);
+  const kingA=H.kingAntworten[H.qi];
   dran().forEach(p=>{
-    p.getroffen = p.antwort!=null && normal(p.antwort)===kingA;
+    p.getroffen = p.antwort!=null && passt(p.antwort,kingA);
     if(p.getroffen){
       p.leben=Math.max(0,p.leben-1);
       if(p.leben===0) p.raus=true;

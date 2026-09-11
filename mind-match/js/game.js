@@ -496,7 +496,7 @@ function viewAnswer(me){
       <input id="ai" maxlength="120" placeholder="Antwort…" autocomplete="off" enterkeyhint="send">
       <div class="zaehler"><span id="zrest">120</span> Zeichen frei</div>
       <button id="sb">Antwort abschicken</button>
-      <div class="hint">Groß- und Kleinschreibung ist egal – „Der Hund" und „hund" zählen als dieselbe Antwort.</div></div>`;
+      <div class="hint">Schreibweise zählt nicht: Groß- und Kleinschreibung, Umlaute, Satzzeichen, Artikel, Mehrzahl und Vertipper werden ignoriert. „Der Hund", „hund" und „Hunde" sind dieselbe Antwort – und „zwei" ist dasselbe wie „2". Mit anderer Schreibweise kommst du also nicht davon.</div></div>`;
   }
 
   paint(HEAD+frame(

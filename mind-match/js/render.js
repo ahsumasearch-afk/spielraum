@@ -56,6 +56,7 @@ function render(){
   if(screen==="invite")     return viewInvite();
   if(screen==="connecting") return viewWait();
   if(screen==="error")      return viewError();
+  if(screen==="netz")       return viewNetztest();
   if(screen==="kicked")     return viewKicked();
   if(!S) return viewWait();
   announce();

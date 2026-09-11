@@ -41,6 +41,7 @@ function viewStart(){
        <div id="prev"></div>
      </div>
    </div>
+   <div class="netzzeile"><button id="netz" class="sec">Verbindung testen</button></div>
    <div class="foot">Läuft direkt zwischen euren Geräten.<br>Kein Konto, keine Daten auf einem Server.</div></div>`);
 
   const nm=el("nm"),cd=el("cd");
@@ -73,6 +74,7 @@ function viewStart(){
   }
 
   const name=()=>{ const n=(nm.value.trim()||"Spieler").slice(0,16); LS.set("fi_name",nm.value.trim()); return n; };
+  if(el("netz")) el("netz").onclick=()=>{ screen="netz"; render(); };
   el("mk").onclick=()=>{ LS.delMine("mm_host"); LS.delMine("mm_room"); startHost(name()); };
   el("jn").onclick=()=>{ const c=cd.value.trim().toUpperCase(); if(c.length<4){cd.focus();return;} LS.delMine("mm_host"); startClient(c,name()); };
   cd.oninput=()=>cd.value=cd.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -153,4 +155,106 @@ function viewKicked(){
     <div class="note">Der Host hat dich aus dem Raum entfernt.</div></div>
     <button id="rl">Zur Startseite</button></div>`);
   el("rl").onclick=()=>location.replace(location.pathname);
+}
+
+
+/* ---------- Verbindungstest ----------
+   Zeigt, ob dieses Geraet ueber das eigene Netz hinaus erreichbar ist. Wer
+   nicht mit Leuten aus anderen Netzen spielen kann, sieht hier, woran es
+   liegt – und kann eigene Relay-Zugangsdaten hinterlegen. */
+let netzStand=null, netzLaeuft=false;
+
+function viewNetztest(){
+  const e=netzStand;
+  const zeile=(titel,wert,gut,erklaerung)=>`<div class="pruef ${gut===null?"":gut?"gut":"schlecht"}">
+    <span class="pz">${gut===null?"…":gut?"✓":"✗"}</span>
+    <span class="pt"><b>${titel}</b><small>${erklaerung}</small></span>
+    <span class="pw">${esc(wert)}</span></div>`;
+
+  const eigen=LS.get("mm_turn",null);
+
+  paint(`<div class="solo">`+HEAD+
+   `<div class="card rise"><h2>Verbindung testen</h2>
+      <div class="note" style="margin-top:0">Mind-Match verbindet die Geräte direkt miteinander.
+        Hier siehst du, ob das über dein Netz hinaus funktioniert.</div>
+      ${netzLaeuft?`<div class="center" style="margin-top:16px"><span class="spin"></span>Prüfe…</div>`:""}
+      ${e?`<div style="margin-top:16px">
+         ${zeile("Treffpunkt-Server",e.broker?"erreichbar":"nicht erreichbar",e.broker,
+                 "Über ihn finden sich zwei Geräte anhand des Raum-Codes.")}
+         ${zeile("Deine öffentliche Adresse",e.stun?"gefunden":"nicht gefunden",e.stun,
+                 "Nötig, damit dich Leute aus anderen Netzen erreichen können.")}
+         ${zeile("Relay für strenge Netze",e.turn?"vorhanden":"keins verfügbar",e.turn,
+                 "Nur nötig, wenn der Router keine direkte Verbindung zulässt.")}
+       </div>
+       <div class="card ${e.broker&&e.stun?"win":"lose"} center" style="margin-top:16px;padding:18px">
+         <div class="verdict ${e.broker&&e.stun?"g":"r"}" style="font-size:19px">${
+           !e.broker ? "Keine Verbindung möglich"
+           : e.stun&&e.turn ? "Bestens – auch strenge Netze"
+           : e.stun ? "Sollte funktionieren"
+           : "Nur im selben Netz"}</div>
+         <div class="vsub">${
+           !e.broker ? "Der Treffpunkt-Server ist gerade nicht erreichbar. Das liegt meist an einem Firmen- oder Schulnetz, das WebSockets blockiert. Probiert es über ein Mobilfunknetz."
+           : e.stun&&e.turn ? "Dein Gerät ist von außen erreichbar und es steht ein Relay bereit. Spiele über verschiedene Netze hinweg sollten klappen."
+           : e.stun ? "Dein Gerät ist von außen erreichbar. In den meisten Netzen genügt das. Klappt es mit jemandem trotzdem nicht, ist eines der beiden Netze besonders streng – dann hilft nur ein Relay (siehe unten)."
+           : "Dein Gerät ist von außen nicht erreichbar. Mit Leuten aus anderen Netzen wird es so nicht gehen – dafür braucht es ein Relay."}</div>
+       </div>`:""}
+      <button id="start" style="margin-top:16px">${e?"Nochmal prüfen":"Prüfung starten"}</button>
+    </div>
+
+    <div class="card rise"><h2>Eigenes Relay hinterlegen</h2>
+      <div class="note" style="margin-top:0">Nur nötig, wenn oben „keins verfügbar" steht <em>und</em> das Spielen
+        über verschiedene Netze nicht klappt. Ein kostenloses Konto bei einem TURN-Anbieter liefert dir die drei Angaben.
+        Sie bleiben nur auf diesem Gerät.</div>
+      <label for="tu" style="margin-top:14px">Adresse</label>
+      <input id="tu" placeholder="turn:beispiel.de:3478" autocomplete="off" value="${esc(eigen&&eigen.urls||"")}">
+      <label for="tn" style="margin-top:12px">Benutzername</label>
+      <input id="tn" autocomplete="off" value="${esc(eigen&&eigen.username||"")}">
+      <label for="tp" style="margin-top:12px">Passwort</label>
+      <input id="tp" autocomplete="off" value="${esc(eigen&&eigen.credential||"")}">
+      <button id="tsave" class="sec" style="margin-top:14px">Speichern und prüfen</button>
+      ${eigen?`<button id="tdel" class="sec">Relay entfernen</button>`:""}
+    </div>
+    <button id="zurueck" class="sec">Zurück</button></div>`);
+
+  el("zurueck").onclick=()=>{ screen="start"; render(); };
+  el("start").onclick=starteNetztest;
+  el("tsave").onclick=()=>{
+    const u=el("tu").value.trim();
+    if(!u){ el("tu").focus(); return; }
+    LS.set("mm_turn",{urls:u, username:el("tn").value.trim(), credential:el("tp").value.trim()});
+    starteNetztest();
+  };
+  if(el("tdel")) el("tdel").onclick=()=>{ LS.del("mm_turn"); netzStand=null; render(); };
+}
+
+function starteNetztest(){
+  if(netzLaeuft) return;
+  netzLaeuft=true; netzStand=null; render();
+  const stand={broker:false, stun:false, turn:false};
+  let offen=2;
+  const fertig=()=>{ if(--offen) return; netzLaeuft=false; netzStand=stand; render(); };
+
+  /* 1. Treffpunkt-Server */
+  let p=null;
+  const brokerFertig=()=>{ try{p&&p.destroy();}catch(_){} p=null; fertig(); };
+  try{
+    p=new Peer(PEEROPT());
+    const frist=setTimeout(()=>{ if(p) brokerFertig(); },9000);
+    p.on("open",()=>{ stand.broker=true; clearTimeout(frist); brokerFertig(); });
+    p.on("error",()=>{ clearTimeout(frist); if(p) brokerFertig(); });
+  }catch(_){ fertig(); }
+
+  /* 2. Welche Wege ins Netz stehen zur Verfuegung? */
+  try{
+    const pc=new RTCPeerConnection({iceServers:eisServer()});
+    pc.createDataChannel("test");
+    pc.onicecandidate=ev=>{
+      const c=ev.candidate&&ev.candidate.candidate;
+      if(!c) return;
+      if(/ typ srflx/.test(c)) stand.stun=true;
+      if(/ typ relay/.test(c)) stand.turn=true;
+    };
+    pc.createOffer().then(o=>pc.setLocalDescription(o));
+    setTimeout(()=>{ try{pc.close();}catch(_){} fertig(); },9000);
+  }catch(_){ fertig(); }
 }

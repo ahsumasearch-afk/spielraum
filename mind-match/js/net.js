@@ -1,5 +1,44 @@
 /* Verbindungsaufbau und Herzschlag zwischen den Geraeten. */
 
+/* --- Verbindungswege ------------------------------------------------------
+
+   Die Geraete reden direkt miteinander. Damit sie sich ueber verschiedene
+   Netze hinweg finden, braucht es Helfer:
+
+   STUN sagt jedem Geraet, unter welcher oeffentlichen Adresse es von aussen
+   erreichbar ist. Das genuegt in den allermeisten Heim- und Mobilfunknetzen.
+   Frueher stand hier nur ein einziger STUN-Server – war der gerade nicht
+   erreichbar, kam gar keine Verbindung zustande. Jetzt sind es mehrere.
+
+   TURN ist der Notnagel: Wo der Router keine direkte Verbindung zulaesst
+   (strenge Firmen- und Gaestenetze, manche Mobilfunkanschluesse), laeuft der
+   Datenstrom ueber einen Relay-Server. Einen dauerhaft verlaesslichen gibt es
+   nicht kostenlos ohne Konto – wer eigene Zugangsdaten hat, traegt sie unten
+   ein oder hinterlegt sie einmalig im Verbindungstest auf der Startseite. */
+
+const STUN=[
+  "stun:stun.l.google.com:19302",
+  "stun:stun1.l.google.com:19302",
+  "stun:stun2.l.google.com:19302",
+  "stun:stun3.l.google.com:19302",
+  "stun:stun4.l.google.com:19302",
+  "stun:stun.cloudflare.com:3478",
+  "stun:global.stun.twilio.com:3478",
+  "stun:stun.nextcloud.com:443"
+];
+
+/* Hier koennen feste TURN-Zugangsdaten stehen, z.B.
+   {urls:"turn:dein.server:3478", username:"name", credential:"passwort"} */
+const TURN=[];
+
+function eisServer(){
+  const liste=STUN.map(u=>({urls:u})).concat(TURN);
+  const eigen=LS.get("mm_turn",null);           // im Verbindungstest hinterlegt
+  if(eigen&&eigen.urls) liste.push(eigen);
+  return liste;
+}
+const PEEROPT=()=>({debug:0, config:{iceServers:eisServer(), iceCandidatePoolSize:4}});
+
 function fail(m){ screen="error"; errMsg=m; render(); }
 
 function startHost(name,resume){
@@ -12,7 +51,7 @@ function neuerSpieler(){
           leben:3,raus:false,antwort:null,getroffen:false,online:true,connId:null};
 }
 function claim(code,restore,attempt){
-  const p=new Peer(PREFIX+code,{debug:0});
+  const p=new Peer(PREFIX+code,PEEROPT());
   let opened=false;
   p.on("open",()=>{
     opened=true; peer=p; roomCode=code;
@@ -76,7 +115,7 @@ function claim(code,restore,attempt){
 function startClient(code,name){
   isHost=false; myName=name; roomCode=code; screen="connecting"; render();
   LS.set("mm_room",{code,name,ts:Date.now(),owner:myPid});
-  const p=new Peer({debug:0});
+  const p=new Peer(PEEROPT());
   peer=p;
   p.on("open",()=>connectHost());
   p.on("error",e=>{
