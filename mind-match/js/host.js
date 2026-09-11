@@ -101,35 +101,30 @@ function vorrat(){
   for(let i=0;i<FRAGEN.length;i++) if(aktiv.indexOf(FRAGEN[i][1])>=0) liste.push(i);
   return liste;
 }
-/* Zieht die Fragen einer Runde ohne Zuruecklegen. Aus jeder Schwierigkeits-
-   stufe kommt eine feste Anzahl, sonst waeren zufaellig auch mal drei
-   harmlose Fragen hintereinander moeglich. Am Ende jeder Runde steht immer
-   mindestens eine Zwickmuehle (Stufe 4) – da wird es richtig eng. */
+/* Zieht die Fragen einer Runde ohne Zuruecklegen und verteilt sie gleichmaessig
+   auf die fuenf Schwierigkeitsstufen. Dadurch steigt jede Runde an – egal, ob
+   sie aus drei oder aus zwanzig Fragen besteht: vorne harmlos, hinten die
+   Zwickmuehle. */
 function zieheFragen(anzahl){
   if(!H.used) H.used=[];
   const pool=vorrat();
   if(pool.filter(i=>H.used.indexOf(i)<0).length<anzahl)
-    H.used=H.used.filter(i=>pool.indexOf(i)<0);            // Vorrat war leer: neu mischen
-  const frei={1:[],2:[],3:[],4:[]};
+    H.used=H.used.filter(i=>pool.indexOf(i)<0);            // Vorrat leer: neu mischen
+  const frei={1:[],2:[],3:[],4:[],5:[]};
   pool.forEach(i=>{ if(H.used.indexOf(i)<0) frei[FRAGEN[i][2]].push(i); });
 
-  /* Bei kurzen Runden zaehlt die Spannweite mehr als die Verteilung:
-     lieber leicht -> brutal als dreimal Mittelfeld. */
-  let quote;
-  if(anzahl===1)      quote={1:0,2:1,3:0,4:0};
-  else if(anzahl===2) quote={1:1,2:0,3:0,4:1};
-  else if(anzahl===3) quote={1:1,2:0,3:1,4:1};
-  else{
-    /* Von hinten rechnen: die schweren Stufen bekommen ihren Anteil zuerst,
-       sonst frisst das Aufrunden am Ende die Zwickmuehlen weg. */
-    quote={4:Math.max(1,Math.round(anzahl*0.2)),
-           3:Math.max(1,Math.round(anzahl*0.25)),
-           2:Math.max(1,Math.round(anzahl*0.3))};
-    quote[1]=anzahl-quote[2]-quote[3]-quote[4];
-    /* Passt der Rest nicht mehr, oben wieder etwas abknapsen. */
-    for(let st=2; quote[1]<1 && st<=3; st++)
-      while(quote[1]<1 && quote[st]>1){ quote[st]--; quote[1]++; }
-    if(quote[1]<1){ quote[1]=1; quote[2]=Math.max(0,anzahl-1-quote[3]-quote[4]); }
+  /* Bei sehr kurzen Runden zaehlt die Spannweite mehr als die Verteilung –
+     lieber von ganz leicht nach ganz schwer springen als im Mittelfeld bleiben. */
+  const kurz={1:[3], 2:[1,5], 3:[1,3,5], 4:[1,2,4,5]};
+  const quote={1:0,2:0,3:0,4:0,5:0};
+  if(kurz[anzahl]){
+    kurz[anzahl].forEach(st=>{ quote[st]=1; });
+  }else{
+    const grund=Math.floor(anzahl/5);
+    [1,2,3,4,5].forEach(st=>{ quote[st]=grund; });
+    /* Der Rest geht an die schweren Stufen – das Ende soll wehtun. */
+    let rest=anzahl-grund*5;
+    [5,4,3,2].forEach(st=>{ if(rest>0){ quote[st]++; rest--; } });
   }
 
   const gezogen=[];
@@ -138,10 +133,10 @@ function zieheFragen(anzahl){
     const i=liste.splice((Math.random()*liste.length)|0,1)[0];
     H.used.push(i); gezogen.push(i); return true;
   };
-  [1,2,3,4].forEach(st=>{ for(let n=0;n<quote[st];n++) if(!zieh(st)) break; });
-  /* Fehlt noch etwas, weil eine Stufe leer war: von den Nachbarn auffuellen. */
-  while(gezogen.length<anzahl && (frei[1].length||frei[2].length||frei[3].length||frei[4].length))
-    if(!zieh(2)&&!zieh(3)&&!zieh(1)&&!zieh(4)) break;
+  [1,2,3,4,5].forEach(st=>{ for(let n=0;n<quote[st];n++) if(!zieh(st)) break; });
+  /* Fehlt etwas, weil eine Stufe leer war: aus der Mitte heraus auffuellen. */
+  while(gezogen.length<anzahl && [1,2,3,4,5].some(st=>frei[st].length))
+    if(!zieh(3)&&!zieh(2)&&!zieh(4)&&!zieh(1)&&!zieh(5)) break;
 
   gezogen.sort((a,b)=>FRAGEN[a][2]-FRAGEN[b][2]);
   return gezogen.map(i=>({text:FRAGEN[i][0], kat:FRAGEN[i][1], schwer:FRAGEN[i][2]}));
@@ -197,12 +192,16 @@ function passt(a,b){
   a=normal(a); b=normal(b);
   if(!a||!b) return false;
   if(a===b) return true;
-  if(a.length>=4 && b.length>=4 && stamm(a)===stamm(b)) return true;
+  /* Ohne Leerzeichen vergleichen: "schrauben zieher" ist derselbe
+     Schraubenzieher, und "Eis Creme" dieselbe Eiscreme. */
+  const ka=a.replace(/ /g,""), kb=b.replace(/ /g,"");
+  if(ka===kb) return true;
+  if(ka.length>=4 && kb.length>=4 && stamm(ka)===stamm(kb)) return true;
   /* Vertipper nur bei laengeren Woertern durchgehen lassen – sonst waeren
      "Hund" und "Bund" oder "Birne" und "Birke" ploetzlich dasselbe. */
-  const lang=Math.max(a.length,b.length);
+  const lang=Math.max(ka.length,kb.length);
   const erlaubt = lang>=10 ? 2 : lang>=6 ? 1 : 0;
-  return erlaubt>0 && abstand(a,b)<=erlaubt;
+  return erlaubt>0 && abstand(ka,kb)<=erlaubt;
 }
 
 function setDeadline(phase){
@@ -398,8 +397,10 @@ function hostHandle(connId,pid,msg){
       if(H.phase!=="answer"||p.waiting||p.raus||pid===H.kingId) return;
       p.antwort=String(msg.text||"").trim().slice(0,120)||"—";
       pruefeAntworten(); broadcast(); return;
-    case "weiter":  if(pid===myPid) weiter(); return;
-    case "force":   if(pid===myPid){ pruefeAntworten(true); broadcast(); } return;
+    /* Weiterschalten duerfen der Host und der King – der King sitzt ohnehin
+       daneben und wartet, waehrend die anderen raten. */
+    case "weiter":  if(pid===myPid||pid===H.kingId) weiter(); return;
+    case "force":   if(pid===myPid||pid===H.kingId){ pruefeAntworten(true); broadcast(); } return;
     case "chat":    hostChat(pid,msg.text,msg.replyTo); return;
     case "bye":
       p.online=false; p.quick=true; p.offSince=Date.now();
@@ -409,7 +410,11 @@ function hostHandle(connId,pid,msg){
       if(msg.color===null||typeof msg.color==="number"||
          (typeof msg.color==="string"&&/^#[0-9a-fA-F]{6}$/.test(msg.color))) p.color=msg.color;
       broadcast(); return;
-    case "start":   if(pid===myPid&&(H.phase==="lobby"||H.phase==="roundend")) hostStartRound(); return;
+    case "start":
+      if(H.phase==="lobby"&&pid!==myPid) return;                 // starten darf nur der Host
+      if(H.phase==="roundend"&&pid!==myPid&&pid!==H.kingId) return;  // danach auch der King
+      if(H.phase==="lobby"||H.phase==="roundend") hostStartRound();
+      return;
     case "lobby":   if(pid===myPid){ H.phase="lobby"; H.deadline=0; broadcast(); } return;
     case "kick":    if(pid===myPid) hostKick(msg.pid); return;
     case "leave":

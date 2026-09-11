@@ -188,7 +188,7 @@ function wireExit(){
 }
 /* Host-Knopf: weiter, ohne auf Abwesende zu warten. */
 function forceBtn(){
-  if(!isHost) return "";
+  if(!isHost&&S.kingId!==myPid) return "";
   const inR=S.players.filter(p=>!p.waiting&&!p.raus&&p.pid!==S.kingId);
   const gone=inR.filter(p=>!p.online);
   if(!gone.length) return "";
@@ -222,7 +222,7 @@ function viewLobby(){
       const anzahl=FRAGEN.filter(x=>x[1]===k.id).length;
       return `<button class="katbtn ${aktiv(k.id)?"on":""}" data-kat="${k.id}" ${isHost?"":"disabled"}>
         <span class="kate">${k.emoji}</span>
-        <span class="katn">${esc(k.name)}<small>${anzahl} Fragen</small></span>
+        <span class="katn">${esc(k.name)}<small>${anzahl} Fragen · 5 Stufen</small></span>
         <span class="hak">${aktiv(k.id)?"✓":""}</span></button>`;
     }).join("")}</div>
     ${isHost?`<div class="katact">
@@ -249,7 +249,7 @@ function viewLobby(){
                 id="prozahl" placeholder="eigene Zahl" value="${[3,5,10,15].indexOf(S.proRunde)<0?S.proRunde:""}">
          <button class="minset ${[3,5,10,15].indexOf(S.proRunde)<0?"on":""}" id="proset">übernehmen</button>
        </div>
-       <div class="note">Jede Runde beginnt harmlos und endet in der Zwickmühle: „Hund oder Katze?" – da trifft man den King fast zwangsläufig. Ab 4 Fragen sind alle vier Schwierigkeitsstufen dabei.</div>
+       <div class="note">Die Fragen steigen in jeder Runde an – egal wie viele es sind. Sie beginnt harmlos („Nenne ein Tier") und endet in der Zwickmühle („Hund oder Katze?"), wo man den King kaum verfehlen kann.</div>
 
        <label style="margin-top:16px">Leben pro Spieler</label>
        <div class="seg" style="grid-template-columns:repeat(5,1fr)">${[1,2,3,4,5].map(n=>
@@ -496,7 +496,7 @@ function viewAnswer(me){
       <input id="ai" maxlength="120" placeholder="Antwort…" autocomplete="off" enterkeyhint="send">
       <div class="zaehler"><span id="zrest">120</span> Zeichen frei</div>
       <button id="sb">Antwort abschicken</button>
-      <div class="hint">Schreibweise zählt nicht: Groß- und Kleinschreibung, Umlaute, Satzzeichen, Artikel, Mehrzahl und Vertipper werden ignoriert. „Der Hund", „hund" und „Hunde" sind dieselbe Antwort – und „zwei" ist dasselbe wie „2". Mit anderer Schreibweise kommst du also nicht davon.</div></div>`;
+      <div class="hint">Schreibweise zählt nicht: Groß- und Kleinschreibung, Umlaute, Satzzeichen, <b>Leerzeichen</b>, Artikel, Mehrzahl und Vertipper werden ignoriert. „Der Hund", „hund" und „Hunde" sind dieselbe Antwort, „schrauben zieher" dasselbe wie „Schraubenzieher" und „zwei" dasselbe wie „2". Mit anderer Schreibweise kommst du also nicht davon.</div></div>`;
   }
 
   paint(HEAD+frame(
@@ -522,6 +522,7 @@ function viewReveal(me){
   const letzte=S.verlauf&&S.verlauf.length?S.verlauf[S.verlauf.length-1]:null;
   const meinTreffer=me&&me.pid!==S.kingId&&me.getroffen;
   const fertig=S.qi+1>=S.anzahlFragen||andere.every(p=>p.raus);
+  const darfWeiter=isHost||S.kingId===myPid;      // der King schaltet selbst weiter
 
   paint(HEAD+frame(
     `<div class="card qhero rise">
@@ -548,11 +549,11 @@ function viewReveal(me){
        <div class="hint">${getroffen.length
           ?`${zahlwort(getroffen.length,"Treffer","Treffer")} – ${getroffen.map(p=>esc(p.name)).join(", ")} ${getroffen.length===1?"verliert":"verlieren"} ein Leben.`
           :"Niemand hat den King getroffen. Alle Leben bleiben."}</div></div>
-     ${isHost?`<button id="w">${fertig?"Runde auswerten":"Nächste Frage"}</button>`
-             :`<div class="card center note rise">${fertig?"Der Host wertet die Runde aus.":"Der Host startet die nächste Frage."}</div>`}`,
+     ${darfWeiter?`<button id="w">${fertig?"Runde auswerten":"Nächste Frage"}</button>`
+             :`<div class="card center note rise">${fertig?"Die Runde wird gleich ausgewertet.":"Gleich kommt die nächste Frage."}</div>`}`,
     playersCard("leben"),chatCard()));
   wire();
-  if(isHost&&el("w")) el("w").onclick=()=>act({t:"weiter"});
+  if(el("w")) el("w").onclick=()=>act({t:"weiter"});
 }
 
 /* ---------- Rundenende ---------- */
@@ -593,15 +594,13 @@ function viewRoundend(){
             :`<span class="tchip ok">niemand getroffen</span>`}</div>
         </div>`).join("")}
      </div>
-     ${isHost?`<button id="nr">Nächste Runde</button>
-               <button id="lb2" class="sec">Zurück in den Warteraum</button>`
-             :`<div class="card center note rise">Der Host startet die nächste Runde.</div>`}`,
+     ${(isHost||binKing)?`<button id="nr">Nächste Runde</button>`:""}
+     ${isHost?`<button id="lb2" class="sec">Zurück in den Warteraum</button>`:""}
+     ${(!isHost&&!binKing)?`<div class="card center note rise">Gleich geht die nächste Runde los.</div>`:""}`,
     playersCard("score"),chatCard()));
   wire();
-  if(isHost){
-    if(el("nr"))  el("nr").onclick=()=>act({t:"start"});
-    if(el("lb2")) el("lb2").onclick=()=>act({t:"lobby"});
-  }
+  if(el("nr"))  el("nr").onclick=()=>act({t:"start"});
+  if(el("lb2")) el("lb2").onclick=()=>act({t:"lobby"});
 }
 
 /* ---------- Podium ---------- */

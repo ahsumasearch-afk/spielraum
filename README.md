@@ -44,7 +44,7 @@ index.html          Hub mit der Spielauswahl
 mind-match/         das Spiel (statisch, kein Build)
   index.html
   css/style.css
-  js/questions.js   459 Fragen in 17 Kategorien, vier Schwierigkeitsstufen
+  js/questions.js   425 Fragen: 17 Kategorien à 25, fünf Stufen à fünf Fragen
   js/core.js        Identität, Emojis, Farben, Hilfsfunktionen
   js/host.js        Spiellogik – der Host ist der Spielserver
   js/net.js         Verbindungen über PeerJS
