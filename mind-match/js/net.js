@@ -46,9 +46,26 @@ function claim(code,restore,attempt){
   });
   p.on("error",e=>{
     if(opened) return;
-    if(e.type==="unavailable-id"&&attempt<6){
+    if(e.type==="unavailable-id"){
       try{p.destroy();}catch(_){}
-      setTimeout(()=>claim(restore?code:genCode(),restore,attempt+1),restore?1800:120);
+      /* Neuer Raum: der zufaellige Code war schon vergeben – einfach den naechsten nehmen. */
+      if(!restore){
+        if(attempt<8){ setTimeout(()=>claim(genCode(),null,attempt+1),120); return; }
+        fail("Es ließ sich gerade kein freier Raum-Code finden. Versuch es gleich nochmal.");
+        return;
+      }
+      /* Eigener Raum: der Verbindungsdienst haelt den Code oft noch kurz fest,
+         wenn der Tab eben erst verlassen wurde. Das loest sich von selbst –
+         also geduldig weiter versuchen und dabei sagen, was los ist. */
+      if(attempt<16){
+        banner="Dein Raum "+code+" wird gleich wieder geöffnet… ("+(attempt+1)+". Versuch)";
+        render();
+        setTimeout(()=>claim(code,restore,attempt+1),Math.min(1000+attempt*350,4000));
+        return;
+      }
+      banner="";
+      fehlerRaum=code;
+      fail("Dein alter Raum "+code+" ist beim Verbindungsdienst noch belegt. Das löst sich meist innerhalb einer Minute von selbst – warte kurz und versuch es nochmal, oder mach mit einem neuen Raum weiter.");
       return;
     }
     fail(peerErr(e));

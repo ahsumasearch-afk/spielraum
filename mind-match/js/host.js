@@ -101,21 +101,36 @@ function vorrat(){
   for(let i=0;i<FRAGEN.length;i++) if(aktiv.indexOf(FRAGEN[i][1])>=0) liste.push(i);
   return liste;
 }
-/* Zieht die Fragen einer Runde ohne Zuruecklegen. Damit eine Runde wirklich
-   ansteigt, wird aus jeder Schwierigkeitsstufe eine feste Anzahl gezogen –
-   sonst waeren zufaellig auch mal drei leichte Fragen hintereinander moeglich. */
+/* Zieht die Fragen einer Runde ohne Zuruecklegen. Aus jeder Schwierigkeits-
+   stufe kommt eine feste Anzahl, sonst waeren zufaellig auch mal drei
+   harmlose Fragen hintereinander moeglich. Am Ende jeder Runde steht immer
+   mindestens eine Zwickmuehle (Stufe 4) – da wird es richtig eng. */
 function zieheFragen(anzahl){
   if(!H.used) H.used=[];
   const pool=vorrat();
   if(pool.filter(i=>H.used.indexOf(i)<0).length<anzahl)
     H.used=H.used.filter(i=>pool.indexOf(i)<0);            // Vorrat war leer: neu mischen
-  const frei={1:[],2:[],3:[]};
+  const frei={1:[],2:[],3:[],4:[]};
   pool.forEach(i=>{ if(H.used.indexOf(i)<0) frei[FRAGEN[i][2]].push(i); });
 
-  /* Etwa ein Drittel leicht, knapp die Haelfte mittel, der Rest schwer. */
-  const quote={1:Math.round(anzahl*0.35), 2:Math.round(anzahl*0.4)};
-  quote[3]=anzahl-quote[1]-quote[2];
-  if(anzahl>=3) [1,2,3].forEach(st=>{ if(quote[st]<1) quote[st]=1; });
+  /* Bei kurzen Runden zaehlt die Spannweite mehr als die Verteilung:
+     lieber leicht -> brutal als dreimal Mittelfeld. */
+  let quote;
+  if(anzahl===1)      quote={1:0,2:1,3:0,4:0};
+  else if(anzahl===2) quote={1:1,2:0,3:0,4:1};
+  else if(anzahl===3) quote={1:1,2:0,3:1,4:1};
+  else{
+    /* Von hinten rechnen: die schweren Stufen bekommen ihren Anteil zuerst,
+       sonst frisst das Aufrunden am Ende die Zwickmuehlen weg. */
+    quote={4:Math.max(1,Math.round(anzahl*0.2)),
+           3:Math.max(1,Math.round(anzahl*0.25)),
+           2:Math.max(1,Math.round(anzahl*0.3))};
+    quote[1]=anzahl-quote[2]-quote[3]-quote[4];
+    /* Passt der Rest nicht mehr, oben wieder etwas abknapsen. */
+    for(let st=2; quote[1]<1 && st<=3; st++)
+      while(quote[1]<1 && quote[st]>1){ quote[st]--; quote[1]++; }
+    if(quote[1]<1){ quote[1]=1; quote[2]=Math.max(0,anzahl-1-quote[3]-quote[4]); }
+  }
 
   const gezogen=[];
   const zieh=st=>{
@@ -123,10 +138,10 @@ function zieheFragen(anzahl){
     const i=liste.splice((Math.random()*liste.length)|0,1)[0];
     H.used.push(i); gezogen.push(i); return true;
   };
-  [1,2,3].forEach(st=>{ for(let n=0;n<quote[st];n++) if(!zieh(st)) break; });
+  [1,2,3,4].forEach(st=>{ for(let n=0;n<quote[st];n++) if(!zieh(st)) break; });
   /* Fehlt noch etwas, weil eine Stufe leer war: von den Nachbarn auffuellen. */
-  while(gezogen.length<anzahl && (frei[1].length||frei[2].length||frei[3].length))
-    if(!zieh(2)&&!zieh(1)&&!zieh(3)) break;
+  while(gezogen.length<anzahl && (frei[1].length||frei[2].length||frei[3].length||frei[4].length))
+    if(!zieh(2)&&!zieh(3)&&!zieh(1)&&!zieh(4)) break;
 
   gezogen.sort((a,b)=>FRAGEN[a][2]-FRAGEN[b][2]);
   return gezogen.map(i=>({text:FRAGEN[i][0], kat:FRAGEN[i][1], schwer:FRAGEN[i][2]}));
@@ -158,7 +173,7 @@ function naechsterKing(){
 }
 function hostStartRound(){
   const da=H.players.filter(p=>p.online);
-  if(da.length<3) return;                    // King plus mindestens zwei Ratende
+  if(da.length<2) return;                    // ein King und mindestens einer, der raet
   if(vorrat().length<H.proRunde) return;     // zu wenig Fragen in der Auswahl
   H.round++;
   H.kingId=naechsterKing();

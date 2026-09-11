@@ -164,7 +164,7 @@ let hostConn=null;       // Client: Verbindung zum Host
 let S=null;              // öffentlich sichtbarer Zustand
 let H=null;              // Host: vollständiger Zustand
 let screen="start";      // start | invite | connecting | game | error | kicked
-let errMsg="",banner="";
+let errMsg="",banner="",fehlerRaum="";
 let draftAnswer="",draftChat="",chatOpen=LS.get("mm_chatopen",true),chatSeen=0;
 let skinOpen=LS.get("mm_skinopen",false);
 let offeneKarten=LS.get("mm_offen",null)||{kat:false,zeit:false,skin:false,notif:false};

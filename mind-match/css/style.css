@@ -395,13 +395,21 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
 
 /* ===================== Mind-Match ===================== */
 
-/* Zurueck zur Spielauswahl – sitzt links neben dem Logo. */
-.brand .zurueck{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
-  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
-  color:var(--mut);text-decoration:none;font-size:17px;font-weight:700;flex:none;transition:.15s}
-.brand .zurueck:hover{background:rgba(255,255,255,.14);color:#fff;transform:translateX(-2px)}
-.start .brand .zurueck{position:absolute;left:0}
-.start .brand{position:relative}
+/* Zurueck zur Spielauswahl – steht als beschrifteter Knopf ueber dem Logo,
+   damit klar ist, wohin er fuehrt. */
+.zurueck{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+  margin-bottom:14px;padding:9px 16px 9px 12px;border-radius:12px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+  color:#fff;text-decoration:none;font-size:13.5px;font-weight:600;
+  letter-spacing:.2px;transition:.16s;flex:none}
+.zurueck .pf{display:grid;place-items:center;width:20px;height:20px;border-radius:7px;
+  background:rgba(255,255,255,.1);font-size:13px;line-height:1;transition:.16s}
+.zurueck:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.22);
+  transform:translateX(-2px)}
+.zurueck:hover .pf{background:var(--p)}
+.solo .zurueck,.start .zurueck{display:flex;width:max-content;margin:0 auto 18px}
+/* Auf dem Handy die volle Breite – da ist ein schmaler Pfeil schnell uebersehen. */
+@media(max-width:560px){ .zurueck{width:100%;justify-content:center;align-self:stretch} }
 
 /* Leben als Herzenreihe */
 .leben{display:inline-flex;gap:2px;align-items:center;font-size:13px;line-height:1;white-space:nowrap}

@@ -98,4 +98,5 @@ function announce(){
   updateTitle();
 }
 
-const HEAD=`<div class="brand"><a class="zurueck" href="../" title="Zur Spielauswahl">←</a><span class="mark">🧠</span><h1>Mind-<em>Match</em></h1></div>`;
+const HEAD=`<a class="zurueck" href="../"><span class="pf">←</span>Zurück zum Spielraum</a>
+<div class="brand"><span class="mark">🧠</span><h1>Mind-<em>Match</em></h1></div>`;

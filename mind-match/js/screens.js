@@ -137,9 +137,16 @@ function viewInvite(){
 }
 function viewWait(){ document.title=TITLE; paint(`<div class="solo">`+HEAD+`<div class="card center rise"><span class="spin"></span>Verbinde…</div></div>`); }
 function viewError(){
-  paint(`<div class="solo">`+HEAD+`<div class="card bad rise"><h2>Da ist was schiefgelaufen</h2><div class="note">${esc(errMsg)}</div></div>
-    <button id="rl">Von vorn anfangen</button></div>`);
-  el("rl").onclick=()=>{ LS.delMine("mm_room"); location.replace(location.pathname); };
+  paint(`<div class="solo">`+HEAD+
+    `<div class="card bad rise"><h2>Da ist was schiefgelaufen</h2><div class="note">${esc(errMsg)}</div></div>`+
+    (fehlerRaum?`<button id="nochmal">Nochmal versuchen</button>`:"")+
+    `<button id="rl" class="${fehlerRaum?"sec":""}">${fehlerRaum?"Neuen Raum aufmachen":"Von vorn anfangen"}</button>
+     <button id="hub" class="sec">Zurück zum Spielraum</button></div>`);
+  if(el("nochmal")) el("nochmal").onclick=()=>location.replace(location.pathname);
+  el("hub").onclick=()=>{ location.href="../"; };
+  /* Wichtig: auch den gespeicherten Raum des Hosts vergessen – sonst landet
+     man beim Neuladen sofort wieder im selben Fehler. */
+  el("rl").onclick=()=>{ LS.delMine("mm_room"); LS.delMine("mm_host"); location.replace(location.pathname); };
 }
 function viewKicked(){
   paint(`<div class="solo">`+HEAD+`<div class="card bad rise"><h2>Du bist raus</h2>

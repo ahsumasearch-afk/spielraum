@@ -1,9 +1,14 @@
 /* Die Fragen fuer Mind-Match.
    Jeder Eintrag: [Frage, Kategorie, Schwierigkeit].
-   Schwierigkeit 1 heisst: es gibt sehr viele moegliche Antworten, eine
-   Uebereinstimmung mit dem King ist unwahrscheinlich. 3 heisst: nur wenige
-   naheliegende Antworten - hier wird es eng. Der Host zieht pro Runde von
-   leicht nach schwer, damit es zum Ende hin spannend wird. */
+   Vier Schwierigkeitsstufen, gemessen daran, wie viele Antworten ernsthaft
+   in Frage kommen:
+     1  sehr viele - ein Treffer beim King waere Zufall
+     2  viele, aber es gibt schon Lieblingsantworten
+     3  wenige naheliegende - hier wird es eng
+     4  die Zwickmuehle: zwei bis vier Antworten, ein Treffer ist fast
+        unvermeidbar ("Hund oder Katze?", "Nenne eine Zahl zwischen 1 und 3")
+   Jede Runde zieht aus allen Stufen und sortiert von leicht nach schwer.
+   So faengt es harmlos an und wird zum Schluss zur Zerreissprobe. */
 const KATEGORIEN=[
   {id:"zahlen",name:"Zahlen & Mengen",emoji:"🔢"},
   {id:"alltag",name:"Alltag & Routine",emoji:"🏠"},
@@ -398,5 +403,93 @@ const FRAGEN=[
   ["Nenne ein Gedicht","kultur",3],
   ["Nenne etwas, das man in einer Bibliothek findet","kultur",2],
   ["Nenne eine berühmte Stadt in der Geschichte","kultur",1],
-  ["Nenne eine Weltreligion","kultur",2]
+  ["Nenne eine Weltreligion","kultur",2],
+
+  /* Stufe 4 – die Zwickmuehle. Nur zwei bis vier ernsthafte Antworten:
+     hier trifft man den King fast zwangslaeufig. Steht am Ende jeder Runde. */
+  ["Kopf oder Zahl?","zahlen",4],
+  ["Nenne eine Zahl zwischen 1 und 3","zahlen",4],
+  ["Gerade oder ungerade?","zahlen",4],
+  ["Nenne eine Zahl zwischen 1 und 4","zahlen",4],
+  ["Nenne eine einstellige Primzahl","zahlen",4],
+  ["Duschst du morgens oder abends?","alltag",4],
+  ["Zahnpasta: von unten oder aus der Mitte drücken?","alltag",4],
+  ["Toilettenpapier: nach vorn oder nach hinten?","alltag",4],
+  ["Fenster nachts: auf oder zu?","alltag",4],
+  ["Schuhe anziehen: links oder rechts zuerst?","alltag",4],
+  ["Pommes: Ketchup oder Mayo?","essen",4],
+  ["Süß oder salzig?","essen",4],
+  ["Nutella aufs Brot: dick oder dünn?","essen",4],
+  ["Ananas auf Pizza: ja oder nein?","essen",4],
+  ["Kaffee oder Tee?","essen",4],
+  ["Berge oder Meer?","orte",4],
+  ["Stadt oder Land?","orte",4],
+  ["Fensterplatz oder Gangplatz?","orte",4],
+  ["Norden oder Süden?","orte",4],
+  ["Urlaub: Zelt oder Hotel?","orte",4],
+  ["Mama oder Papa?","menschen",4],
+  ["Anrufen oder schreiben?","menschen",4],
+  ["Umarmung oder Handschlag?","menschen",4],
+  ["Wenige enge oder viele lockere Freunde?","menschen",4],
+  ["Streit: sofort klären oder drüber schlafen?","menschen",4],
+  ["Früh aufstehen oder lange schlafen?","ich",4],
+  ["Bist du eher laut oder leise?","ich",4],
+  ["Planen oder spontan sein?","ich",4],
+  ["Glas halb voll oder halb leer?","ich",4],
+  ["Nie wieder Musik oder nie wieder Filme?","ich",4],
+  ["Handy: lautlos oder mit Ton?","dinge",4],
+  ["Buch: Papier oder Bildschirm?","dinge",4],
+  ["Geschenk: Papier oder Tüte?","dinge",4],
+  ["Uhr: analog oder digital?","dinge",4],
+  ["Bargeld oder Karte?","dinge",4],
+  ["Homeoffice oder Büro?","arbeit",4],
+  ["Meeting oder E-Mail?","arbeit",4],
+  ["Früh anfangen oder spät aufhören?","arbeit",4],
+  ["Chef sein oder Chef haben?","arbeit",4],
+  ["Pause: allein oder mit Kollegen?","arbeit",4],
+  ["iPhone oder Android?","medien",4],
+  ["Hell- oder Dunkelmodus?","medien",4],
+  ["Gelesen-Haken: an oder aus?","medien",4],
+  ["Story oder Beitrag?","medien",4],
+  ["Benachrichtigungen: an oder aus?","medien",4],
+  ["Weihnachtsbaum: echt oder künstlich?","feste",4],
+  ["Geschenke: Heiligabend oder erster Feiertag?","feste",4],
+  ["Silvester: Party oder Couch?","feste",4],
+  ["Geburtstag: feiern oder ignorieren?","feste",4],
+  ["Karneval: mitmachen oder fliehen?","feste",4],
+  ["Sommer- oder Wintersport?","sport",4],
+  ["Mannschaft oder allein?","sport",4],
+  ["Selbst spielen oder zuschauen?","sport",4],
+  ["Laufen oder Radfahren?","sport",4],
+  ["Training: morgens oder abends?","sport",4],
+  ["Kopfhörer oder Lautsprecher?","musik",4],
+  ["Playlist oder Zufall?","musik",4],
+  ["Konzert oder Festival?","musik",4],
+  ["Mitsingen oder mitwippen?","musik",4],
+  ["Musik beim Arbeiten: an oder aus?","musik",4],
+  ["Kino oder Couch?","filme",4],
+  ["Untertitel oder Synchronisation?","filme",4],
+  ["Serie am Stück oder Folge für Folge?","filme",4],
+  ["Popcorn: süß oder salzig?","filme",4],
+  ["Horror oder Komödie?","filme",4],
+  ["Controller oder Tastatur?","games",4],
+  ["Allein oder zu zweit spielen?","games",4],
+  ["Handy oder Konsole?","games",4],
+  ["Schwerer oder leichter Schwierigkeitsgrad?","games",4],
+  ["Brettspiel oder Videospiel?","games",4],
+  ["Hund oder Katze?","tiere",4],
+  ["Vogel oder Fisch?","tiere",4],
+  ["Löwe oder Tiger?","tiere",4],
+  ["Spinne: rausbringen oder wegrennen?","tiere",4],
+  ["Pferd oder Kuh?","tiere",4],
+  ["Automatik oder Handschaltung?","autos",4],
+  ["Fahren oder mitfahren?","autos",4],
+  ["Schnell oder sparsam?","autos",4],
+  ["Auto: schwarz oder weiß?","autos",4],
+  ["Elektro oder Benzin?","autos",4],
+  ["Buch oder Film?","kultur",4],
+  ["Museum oder Konzert?","kultur",4],
+  ["Theater: ja oder nein?","kultur",4],
+  ["Gedicht oder Lied?","kultur",4],
+  ["Hochdeutsch oder Dialekt?","kultur",4],
 ];

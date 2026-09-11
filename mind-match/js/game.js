@@ -249,7 +249,7 @@ function viewLobby(){
                 id="prozahl" placeholder="eigene Zahl" value="${[3,5,10,15].indexOf(S.proRunde)<0?S.proRunde:""}">
          <button class="minset ${[3,5,10,15].indexOf(S.proRunde)<0?"on":""}" id="proset">übernehmen</button>
        </div>
-       <div class="note">Die Fragen werden von leicht nach schwer sortiert – zum Schluss wird es eng.</div>
+       <div class="note">Jede Runde beginnt harmlos und endet in der Zwickmühle: „Hund oder Katze?" – da trifft man den King fast zwangsläufig. Ab 4 Fragen sind alle vier Schwierigkeitsstufen dabei.</div>
 
        <label style="margin-top:16px">Leben pro Spieler</label>
        <div class="seg" style="grid-template-columns:repeat(5,1fr)">${[1,2,3,4,5].map(n=>
@@ -288,10 +288,10 @@ function viewLobby(){
          <input type="color" id="colpick"><span>+</span>
        </label></div>`;
 
-  const zuwenig=on<3, knapp=S.vorrat<S.proRunde;
+  const zuwenig=on<2, knapp=S.vorrat<S.proRunde;
   const startKnopf=n=>isHost
     ? `<button id="go${n}" ${zuwenig||knapp?"disabled":""}>Runde starten</button>`+
-      (zuwenig?`<div class="note" style="text-align:center">Ihr braucht mindestens 3 Spieler: einen King und zwei, die raten.</div>`
+      (zuwenig?`<div class="note" style="text-align:center">Ihr braucht mindestens 2 Spieler: einen King und einen, der rät.</div>`
        :knapp?`<div class="note" style="text-align:center">Nur ${S.vorrat} Fragen in der Auswahl – wähle mehr Kategorien oder weniger Fragen pro Runde.</div>`:"")
     : `<div class="card tight center note rise" style="margin:0 0 13px">Warte auf den Host…</div>`;
 
