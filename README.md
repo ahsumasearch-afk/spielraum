@@ -76,9 +76,25 @@ ist es egal, wer in welchem Netz sitzt.
 Der Host bleibt der Spielserver: alle Nachrichten laufen über ihn, er rechnet
 und schickt den Zustand zurück. Nur der Weg dorthin ist neu.
 
-Zwei Dienste stehen bereit (`broker.emqx.io`, `broker.hivemq.com`); klappt der
-eine nicht, wird beim nächsten Anlauf der andere genommen. Die Liste steht in
-`js/net.js` unter `RELAYS`.
+Die Dienste stehen in `js/net.js` unter `RELAYS`, in der Reihenfolge, in der
+sie versucht werden. Nachgemessen: `broker.hivemq.com` stellt auch ganze
+Nachrichtenschwälle vollständig zu, `broker.emqx.io` verliert dabei welche –
+deshalb steht HiveMQ vorn und EMQX nur als letzter Notnagel.
+
+Damit auch der beste Dienst nicht überfordert wird:
+
+* Nachrichten gehen **bestätigt** raus und werden **bestätigt** abonniert
+  (QoS 1 in beide Richtungen – ein Abo mit QoS 0 stuft sonst alles wieder
+  herunter).
+* Ausgehende Nachrichten werden auf ~70 ms Abstand **entzerrt**; ein noch
+  nicht abgeschickter Zustand wird durch den neueren ersetzt.
+* Der Zustand geht **einmal an alle** statt einmal je Spieler. Beim Impostor
+  wird nur die persönliche Frage einzeln zugestellt, und auch nur dann, wenn
+  sie sich geändert hat.
+* Der Chatverlauf wird auf die letzten 50 Beiträge gekürzt, statt in jedem
+  Paket komplett mitzugehen.
+* Alle zehn Sekunden schickt der Host den vollen Zustand nach – sollte doch
+  etwas verlorengehen, holt sich jeder von selbst wieder ein.
 
 **Zur Vertraulichkeit:** Der Relay-Dienst ist öffentlich und ohne Konto
 nutzbar. Die Spielnachrichten sind für Außenstehende uninteressant, aber sie

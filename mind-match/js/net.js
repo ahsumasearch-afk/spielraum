@@ -18,9 +18,13 @@
    Konto nutzbar. Die Spielnachrichten sind fuer niemanden interessant, aber
    sie sind auch nicht geheim - wer den Raum-Code kennt, koennte mitlesen. */
 
+/* Nachgemessen: broker.hivemq.com stellt auch ganze Schwaelle vollstaendig
+   zu, broker.emqx.io verliert dabei Nachrichten – deshalb diese Reihenfolge.
+   Der dritte Eintrag ist nur der allerletzte Notnagel. */
 const RELAYS=[
-  "wss://broker.emqx.io:8084/mqtt",
-  "wss://broker.hivemq.com:8884/mqtt"
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://mqtt-dashboard.com:8884/mqtt",
+  "wss://broker.emqx.io:8084/mqtt"
 ];
 const APP="spielraum/mindmatch/";           // eigener Bereich je Spiel
 
@@ -31,6 +35,7 @@ let raumOffen=false;
 
 const tOwner=c=>APP+c+"/owner";             // wer diesen Raum fuehrt (bleibt stehen)
 const tHost =c=>APP+c+"/host";              // Nachrichten an den Host
+const tAlle =c=>APP+c+"/all";               // Zustand fuer alle auf einmal
 const tMir  =(c,pid)=>APP+c+"/p/"+pid;      // Nachrichten an einen Spieler
 
 function fail(m){ screen="error"; errMsg=m; render(); }
@@ -64,12 +69,54 @@ function verbinde(beiVerbindung){
   });
   return c;
 }
-function sende(topic,daten){
+/* Wichtige Nachrichten werden bestaetigt zugestellt (QoS 1). Vorher ging
+   alles unbestaetigt raus – bei mehreren Nachrichten kurz hintereinander kam
+   ein Teil schlicht nicht an, und dann stand das Spiel still. Nur der
+   Herzschlag darf verlorengehen, der kommt ohnehin gleich wieder. */
+/* Auch die Empfangsseite muss bestaetigt zustellen lassen: ein Abo mit QoS 0
+   stuft selbst bestaetigt verschickte Nachrichten wieder herunter. Deshalb
+   werden alle Themen mit QoS 1 abonniert.
+
+   Ausserdem werden ausgehende Nachrichten leicht entzerrt. Ein ganzer Schwall
+   auf einmal kostet bei kostenlosen Diensten Nachrichten, obwohl sie alle
+   bestaetigt werden – gedrosselt kommt alles an. Ein noch nicht abgeschickter
+   Zustand wird dabei durch den neueren ersetzt, statt beide zu verschicken. */
+const ABSTAND=70;
+const warteschlange=[];
+let schlangeLaeuft=false;
+
+function sende(topic,daten,beilaeufig){
+  if(!relais) return;
+  if(beilaeufig){ direkt(topic,daten,0); return; }
+  if(daten&&daten.t==="state"){
+    for(let i=0;i<warteschlange.length;i++)
+      if(warteschlange[i].topic===topic&&warteschlange[i].daten.t==="state"){
+        warteschlange[i].daten=daten; return;
+      }
+  }
+  if(warteschlange.length>200) warteschlange.shift();     // Notbremse
+  warteschlange.push({topic,daten});
+  arbeiteAb();
+}
+function direkt(topic,daten,qos){
   if(!relais||!relais.connected) return;
-  try{ relais.publish(topic,JSON.stringify(daten),{qos:0}); }catch(_){}
+  try{ relais.publish(topic,JSON.stringify(daten),{qos}); }catch(_){}
+}
+function arbeiteAb(){
+  if(schlangeLaeuft||!warteschlange.length) return;
+  schlangeLaeuft=true;
+  if(!relais||!relais.connected){                         // warten, nichts wegwerfen
+    setTimeout(()=>{ schlangeLaeuft=false; arbeiteAb(); },500);
+    return;
+  }
+  const n=warteschlange.shift();
+  direkt(n.topic,n.daten,1);
+  setTimeout(()=>{ schlangeLaeuft=false; arbeiteAb(); },ABSTAND);
 }
 /* Nachricht an einen einzelnen Spieler. */
-function sendeAn(pid,msg){ if(pid!==myPid&&roomCode) sende(tMir(roomCode,pid),msg); }
+function sendeAn(pid,msg,beilaeufig){
+  if(pid!==myPid&&roomCode) sende(tMir(roomCode,pid),msg,beilaeufig);
+}
 
 function teardown(){
   clearInterval(ownerTimer); ownerTimer=null;
@@ -90,7 +137,7 @@ function startHost(name,resume){
   const c=verbinde(erste=>{
     if(erste) belegeCode(resume?resume.code:genCode(), resume?resume.state:null, 0);
     else if(roomCode){                       // nach einem Abriss: alles neu anmelden
-      relais.subscribe(tHost(roomCode),{qos:0});
+      relais.subscribe(tHost(roomCode),{qos:1});
       zeigeRaumAn();
       broadcast();
     }
@@ -133,7 +180,7 @@ function belegeCode(code,restore,versuch){
     fail("Der Raum "+code+" wird gerade von einem anderen Gerät geführt. Mach mit einem neuen Raum weiter.");
   };
   relais.on("message",horcher);
-  relais.subscribe(tOwner(code),{qos:0});
+  relais.subscribe(tOwner(code),{qos:1});
   /* Eine stehengebliebene Notiz kommt sofort. Kommt keine, ist der Code frei. */
   setTimeout(()=>{
     if(entschieden) return;
@@ -160,7 +207,7 @@ function oeffneRaum(code,restore){
     H=freshState();
     H.players.push(neuerSpieler());
   }
-  relais.subscribe(tHost(code),{qos:0});
+  relais.subscribe(tHost(code),{qos:1});
   zeigeRaumAn();
   clearInterval(ownerTimer);
   ownerTimer=setInterval(zeigeRaumAn,20000);      // Notiz frisch halten
@@ -181,8 +228,9 @@ function startClient(code,name){
   LS.set("mm_room",{code,name,ts:Date.now(),owner:myPid});
   let gabsRaum=false;
   const c=verbinde(erste=>{
-    relais.subscribe(tMir(code,myPid),{qos:0});
-    relais.subscribe(tOwner(code),{qos:0});
+    relais.subscribe(tMir(code,myPid),{qos:1});
+    relais.subscribe(tAlle(code),{qos:1});
+    relais.subscribe(tOwner(code),{qos:1});
     meldeAn();
     if(erste) setTimeout(()=>{                       // gibt es den Raum ueberhaupt?
       if(!gabsRaum&&!S) fail("Diesen Raum gibt es nicht (mehr). Prüfe den Code – oder lass dir einen neuen Link schicken.");
@@ -192,7 +240,7 @@ function startClient(code,name){
   c.on("message",(topic,nutz)=>{
     const roh=nutz.toString();
     if(topic===tOwner(code)){ if(roh) gabsRaum=true; return; }
-    if(topic!==tMir(code,myPid)) return;
+    if(topic!==tMir(code,myPid)&&topic!==tAlle(code)) return;
     let d=null; try{ d=JSON.parse(roh); }catch(_){ return; }
     if(!d) return;
     gabsRaum=true; lastHb=Date.now(); retries=0;
@@ -208,7 +256,7 @@ function meldeAn(){
 /* Der Client meldet sich regelmaessig beim Host. */
 setInterval(()=>{
   if(isHost||!relais||!relais.connected||!roomCode||screen==="kicked") return;
-  sende(tHost(roomCode),{t:"ping",from:myPid});
+  sende(tHost(roomCode),{t:"ping",from:myPid},true);
 },BEAT);
 
 /* Und merkt, wenn der Host verstummt. */

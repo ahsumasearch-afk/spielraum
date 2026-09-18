@@ -42,7 +42,19 @@ function saveHost(){
   LS.set("mm_host",{code:roomCode,ts:Date.now(),owner:myPid,
     state:{...H,players:H.players.map(p=>({...p,online:false}))}});
 }
-function sendTo(p,msg){ sendeAn(p.pid,msg); }
+function sendTo(p,msg,beilaeufig){ sendeAn(p.pid,msg,beilaeufig); }
+
+/* Doppelte Nachrichten abfangen. Weil jede Handlung jetzt bestaetigt
+   zugestellt wird, kann sie im Zweifel zweimal ankommen – ein Chatbeitrag
+   soll deswegen nicht doppelt im Fenster stehen. */
+const gesehen={};
+function schonGesehen(pid,mid){
+  if(!mid) return false;
+  const liste=gesehen[pid]||(gesehen[pid]=[]);
+  if(liste.indexOf(mid)>=0) return true;
+  liste.push(mid); if(liste.length>80) liste.shift();
+  return false;
+}
 
 function hostJoin(connId,pid,name,emoji,color){
   if(H.kicked.includes(pid)){ sendeAn(pid,{t:"denied"}); return; }
@@ -326,7 +338,10 @@ function hostSweep(){
   const before=H.phase;
   pruefeAntworten();
   if(changed||H.phase!==before){ broadcast(); return; }
-  if(++beatCount%3===0) H.players.forEach(p=>{ if(p.pid!==myPid&&p.online) sendeAn(p.pid,{t:"hb"}); });
+  if(++beatCount%3===0&&roomCode) sende(tAlle(roomCode),{t:"hb"},true);
+  /* Alle zehn Sekunden den vollen Zustand nachreichen. Sollte doch einmal
+     etwas verlorengehen, holt sich jeder damit von selbst wieder ein. */
+  if(beatCount%5===0) verteile(publicState());
 }
 
 /* ---------------------------------------------------------------- Zustand teilen */
@@ -345,7 +360,7 @@ function publicState(){
     maxRounds:H.maxRounds||0, proRunde:H.proRunde, startLeben:H.startLeben,
     tKing:H.tKing||0, tAnswer:H.tAnswer||0, deadline:H.deadline||0,
     kat:H.kat||[], vorrat:vorrat().length,
-    chat:H.chat,
+    chat:(H.chat||[]).slice(-50),   // nicht der ganze Verlauf in jedem Paket
     players:H.players.map(p=>({
       pid:p.pid, name:p.name, emoji:p.emoji||"",
       color:(p.color===0||p.color)?p.color:null, score:p.score,
@@ -357,13 +372,21 @@ function publicState(){
     }))
   };
 }
+/* Der eigene Bildschirm wird sofort aktualisiert, das Verschicken aber kurz
+   gebuendelt: 25 Chatbeitraege kurz hintereinander loesten sonst 25 volle
+   Zustandspakete aus. */
+let netzTimer=null, nochMal=false;
+/* Der Zustand ist fuer alle derselbe – also einmal an alle statt einmal je
+   Spieler. Das spart bei sechs Mitspielern fuenf von sechs Nachrichten. */
+function verteile(s){
+  if(roomCode) sende(tAlle(roomCode),{t:"state",s});
+}
 function broadcast(){
   const s=publicState();
-  H.players.forEach(p=>{
-    if(p.pid===myPid){ S=s; return; }
-    sendTo(p,{t:"state",s});
-  });
-  saveHost(); render();
+  S=s; saveHost(); render();
+  if(netzTimer){ nochMal=true; return; }
+  verteile(s);
+  netzTimer=setTimeout(()=>{ netzTimer=null; if(nochMal){ nochMal=false; broadcast(); } },140);
 }
 
 /* ---------------------------------------------------------------- Nachrichten */
@@ -373,6 +396,7 @@ function hostHandle(connId,pid,msg){
   if(msg.t==="join"){ hostJoin(msg.pid,msg.pid,msg.name,msg.emoji,msg.color); return; }
   const p=hp(pid); if(!p) return;
   p.lastSeen=Date.now();
+  if(schonGesehen(pid,msg.mid)) return;
   if(msg.t==="ping"){
     if(!p.online){ p.online=true; p.quick=false; p.offSince=0; broadcast(); }
     return;
@@ -453,7 +477,9 @@ function hostHandle(connId,pid,msg){
 }
 /* Eine Handlung ausloesen. Der Host rechnet selbst, alle anderen schicken
    sie ueber das Relais an ihn – mit Absender, damit er weiss, wer gemeint ist. */
+let actNr=0;
 function act(msg){
   if(isHost) hostHandle(myPid,myPid,msg);
-  else if(roomCode) sende(tHost(roomCode),Object.assign({from:myPid},msg));
+  else if(roomCode)
+    sende(tHost(roomCode),Object.assign({from:myPid,mid:myPid+"-"+(++actNr)},msg));
 }
