@@ -62,20 +62,29 @@ und neuen Dateien lädt.
 
 ## Verbindung
 
-Die Geräte reden direkt miteinander (WebRTC). Damit sie sich über verschiedene
-Netze hinweg finden, fragen sie mehrere STUN-Server nach ihrer öffentlichen
-Adresse – das genügt in den allermeisten Heim- und Mobilfunknetzen.
+Früher sprachen die Geräte direkt miteinander (WebRTC). Das ist schnell,
+scheitert aber an Netzen, die eine direkte Verbindung von außen gar nicht
+zulassen – strenge Firmen- und Gästenetze, manche Mobilfunkanschlüsse. Genau
+daran sind Spiele über verschiedene Netze hinweg gescheitert.
 
-Wo ein Router gar keine direkte Verbindung zulässt (strenge Firmen- und
-Gästenetze, manche Mobilfunkanschlüsse), muss der Datenstrom über einen
-Relay-Server (TURN) laufen. Einen dauerhaft verlässlichen gibt es nicht
-kostenlos ohne Konto. Eigene Zugangsdaten lassen sich auf zwei Wegen
-hinterlegen:
+Seit v2.0 läuft alles über einen öffentlichen Relay-Dienst (MQTT über
+WebSocket). Jedes Gerät baut nur **eine ausgehende, verschlüsselte Verbindung**
+nach außen auf – technisch dasselbe wie das Laden einer Webseite. Es gibt keine
+Verbindung zwischen den Geräten mehr, die ein Router blockieren könnte. Damit
+ist es egal, wer in welchem Netz sitzt.
 
-* dauerhaft für alle: in `mind-match/js/net.js` in die Liste `TURN` eintragen
-* nur für ein Gerät: **Verbindung testen** auf der Startseite → *Eigenes Relay
-  hinterlegen*
+Der Host bleibt der Spielserver: alle Nachrichten laufen über ihn, er rechnet
+und schickt den Zustand zurück. Nur der Weg dorthin ist neu.
 
-Der Verbindungstest zeigt außerdem, ob der Treffpunkt-Server erreichbar ist und
-ob das Gerät von außen gefunden wird – damit lässt sich einkreisen, woran es
-hakt, wenn ein Spiel über Netzgrenzen hinweg nicht zustande kommt.
+Zwei Dienste stehen bereit (`broker.emqx.io`, `broker.hivemq.com`); klappt der
+eine nicht, wird beim nächsten Anlauf der andere genommen. Die Liste steht in
+`js/net.js` unter `RELAYS`.
+
+**Zur Vertraulichkeit:** Der Relay-Dienst ist öffentlich und ohne Konto
+nutzbar. Die Spielnachrichten sind für Außenstehende uninteressant, aber sie
+sind auch nicht geheim – wer den vierstelligen Raum-Code kennt oder errät,
+könnte mitlesen. Für einen Spieleabend ist das in Ordnung; nichts Vertrauliches
+in den Chat schreiben.
+
+**Verbindung testen** auf der Startseite prüft, ob der Dienst erreichbar ist
+und ob Nachrichten wirklich durchkommen.

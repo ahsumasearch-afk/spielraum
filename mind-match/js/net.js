@@ -1,172 +1,222 @@
-/* Verbindungsaufbau und Herzschlag zwischen den Geraeten. */
+/* Verbindung zwischen den Geraeten.
 
-/* --- Verbindungswege ------------------------------------------------------
+   Frueher sprachen die Geraete direkt miteinander (WebRTC). Das ist schnell,
+   scheitert aber an Netzen, die eine direkte Verbindung von aussen gar nicht
+   zulassen - strenge Firmen- und Gaestenetze, manche Mobilfunkanschluesse.
+   Genau daran sind Spiele ueber verschiedene Netze hinweg gescheitert.
 
-   Die Geraete reden direkt miteinander. Damit sie sich ueber verschiedene
-   Netze hinweg finden, braucht es Helfer:
+   Jetzt laeuft alles ueber einen oeffentlichen Relay-Dienst: jedes Geraet baut
+   nur eine ausgehende, verschluesselte WebSocket-Verbindung nach aussen auf -
+   technisch dasselbe wie das Laden einer Webseite. Es gibt keine Verbindung
+   mehr zwischen den Geraeten, die irgendein Router blockieren koennte. Damit
+   ist es egal, wer in welchem Netz sitzt.
 
-   STUN sagt jedem Geraet, unter welcher oeffentlichen Adresse es von aussen
-   erreichbar ist. Das genuegt in den allermeisten Heim- und Mobilfunknetzen.
-   Frueher stand hier nur ein einziger STUN-Server – war der gerade nicht
-   erreichbar, kam gar keine Verbindung zustande. Jetzt sind es mehrere.
+   Der Host bleibt der Spielserver: alle Nachrichten laufen ueber ihn, er
+   rechnet und schickt den Zustand zurueck. Nur der Weg dorthin ist neu.
 
-   TURN ist der Notnagel: Wo der Router keine direkte Verbindung zulaesst
-   (strenge Firmen- und Gaestenetze, manche Mobilfunkanschluesse), laeuft der
-   Datenstrom ueber einen Relay-Server. Einen dauerhaft verlaesslichen gibt es
-   nicht kostenlos ohne Konto – wer eigene Zugangsdaten hat, traegt sie unten
-   ein oder hinterlegt sie einmalig im Verbindungstest auf der Startseite. */
+   Hinweis zur Vertraulichkeit: der Relay-Dienst ist oeffentlich und ohne
+   Konto nutzbar. Die Spielnachrichten sind fuer niemanden interessant, aber
+   sie sind auch nicht geheim - wer den Raum-Code kennt, koennte mitlesen. */
 
-const STUN=[
-  "stun:stun.l.google.com:19302",
-  "stun:stun1.l.google.com:19302",
-  "stun:stun2.l.google.com:19302",
-  "stun:stun3.l.google.com:19302",
-  "stun:stun4.l.google.com:19302",
-  "stun:stun.cloudflare.com:3478",
-  "stun:global.stun.twilio.com:3478",
-  "stun:stun.nextcloud.com:443"
+const RELAYS=[
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt"
 ];
+const APP="spielraum/mindmatch/";           // eigener Bereich je Spiel
 
-/* Hier koennen feste TURN-Zugangsdaten stehen, z.B.
-   {urls:"turn:dein.server:3478", username:"name", credential:"passwort"} */
-const TURN=[];
+let relais=null;                            // Verbindung zum Relay-Dienst
+let relaisNr=0;                             // welcher Dienst gerade dran ist
+let ownerTimer=null;                        // haelt die Raum-Anzeige frisch
+let raumOffen=false;
 
-function eisServer(){
-  const liste=STUN.map(u=>({urls:u})).concat(TURN);
-  const eigen=LS.get("mm_turn",null);           // im Verbindungstest hinterlegt
-  if(eigen&&eigen.urls) liste.push(eigen);
-  return liste;
-}
-const PEEROPT=()=>({debug:0, config:{iceServers:eisServer(), iceCandidatePoolSize:4}});
+const tOwner=c=>APP+c+"/owner";             // wer diesen Raum fuehrt (bleibt stehen)
+const tHost =c=>APP+c+"/host";              // Nachrichten an den Host
+const tMir  =(c,pid)=>APP+c+"/p/"+pid;      // Nachrichten an einen Spieler
 
 function fail(m){ screen="error"; errMsg=m; render(); }
 
+/* --- Grundverbindung ---------------------------------------------------- */
+
+/* Baut die Verbindung zum Relay auf. Klappt der eine Dienst nicht, wird beim
+   naechsten Versuch der andere genommen. */
+function verbinde(beiVerbindung){
+  const url=RELAYS[relaisNr%RELAYS.length];
+  let c;
+  try{
+    c=mqtt.connect(url,{
+      clientId:"sr_"+myPid+"_"+Math.random().toString(36).slice(2,7),
+      clean:true, connectTimeout:8000, reconnectPeriod:2500, keepalive:30
+    });
+  }catch(e){
+    relaisNr++;
+    fail("Der Verbindungsdienst ist nicht erreichbar. Internet prüfen und neu laden.");
+    return null;
+  }
+  relais=c;
+  let erste=true;
+  c.on("connect",()=>{
+    if(banner==="Verbindung unterbrochen – versuche erneut…"){ banner=""; render(); }
+    beiVerbindung(erste); erste=false;       // nach einem Abriss neu anmelden
+  });
+  c.on("error",()=>{ relaisNr++; });          // beim naechsten Anlauf den anderen Dienst
+  c.on("close",()=>{
+    if(screen==="game"&&!banner){ banner="Verbindung unterbrochen – versuche erneut…"; render(); }
+  });
+  return c;
+}
+function sende(topic,daten){
+  if(!relais||!relais.connected) return;
+  try{ relais.publish(topic,JSON.stringify(daten),{qos:0}); }catch(_){}
+}
+/* Nachricht an einen einzelnen Spieler. */
+function sendeAn(pid,msg){ if(pid!==myPid&&roomCode) sende(tMir(roomCode,pid),msg); }
+
+function teardown(){
+  clearInterval(ownerTimer); ownerTimer=null;
+  if(relais){
+    /* Die Raum-Anzeige loeschen, damit niemand mehr einen toten Raum findet. */
+    if(isHost&&raumOffen&&roomCode){
+      try{ relais.publish(tOwner(roomCode),"",{qos:0,retain:true}); }catch(_){}
+    }
+    try{ relais.end(true); }catch(_){}
+  }
+  relais=null; raumOffen=false; hostConn=null;
+}
+
+/* --- Raum eroeffnen ------------------------------------------------------ */
+
 function startHost(name,resume){
   isHost=true; myName=name; screen="connecting"; render();
-  claim(resume?resume.code:genCode(),resume?resume.state:null,0);
+  const c=verbinde(erste=>{
+    if(erste) belegeCode(resume?resume.code:genCode(), resume?resume.state:null, 0);
+    else if(roomCode){                       // nach einem Abriss: alles neu anmelden
+      relais.subscribe(tHost(roomCode),{qos:0});
+      zeigeRaumAn();
+      broadcast();
+    }
+  });
+  if(!c) return;
+  c.on("message",(topic,nutz)=>{
+    if(topic!==tHost(roomCode)) return;
+    let d=null; try{ d=JSON.parse(nutz.toString()); }catch(_){ return; }
+    if(!d||!d.from) return;
+    hostHandle(d.from,d.from,d);
+  });
 }
+
 /* Der eigene Eintrag – der Host legt sich selbst mit an. */
 function neuerSpieler(){
   return {pid:myPid,name:myName,emoji:myEmoji,color:myColor,score:0,
-          leben:3,raus:false,antwort:null,getroffen:false,online:true,connId:null};
+          leben:3,raus:false,antwort:null,getroffen:false,online:true,connId:myPid};
 }
-function claim(code,restore,attempt){
-  const p=new Peer(PREFIX+code,PEEROPT());
-  let opened=false;
-  p.on("open",()=>{
-    opened=true; peer=p; roomCode=code;
-    if(restore){
-      H=restore; H.kicked=H.kicked||[]; H.chat=H.chat||[];
-      H.tKing=H.tKing||0; H.tAnswer=H.tAnswer||0;
-      H.used=H.used||[]; H.fragen=H.fragen||[]; H.kingAntworten=H.kingAntworten||[]; H.verlauf=H.verlauf||[];
-      H.qi=H.qi||0; H.kingZaehler=H.kingZaehler||0;
-      if(!Array.isArray(H.kat)||!H.kat.length) H.kat=KATEGORIEN.map(function(k){return k.id;});
-      H.maxRounds=H.maxRounds||0; H.proRunde=H.proRunde||5; H.startLeben=H.startLeben||3;
-      const me=hp(myPid);
-      if(me){ me.online=true; me.connId=null; myName=me.name; me.emoji=myEmoji||me.emoji||""; me.color=(myColor===0||myColor)?myColor:me.color; }
-      else H.players.push(neuerSpieler());
-    }else{
-      H=freshState();
-      H.players.push(neuerSpieler());
-    }
-    screen="game"; banner=""; broadcast();
-    clearInterval(sweepTimer); sweepTimer=setInterval(hostSweep,2000);
-  });
-  p.on("connection",c=>{
-    let pid=null;
-    c.on("open",()=>{ conns[c.peer]=c; });
-    c.on("data",d=>{
-      conns[c.peer]=c;
-      if(d&&d.t==="join") pid=d.pid;
-      hostHandle(c.peer,pid,d);
-    });
-    c.on("close",()=>hostOffline(c.peer));
-    c.on("error",()=>{});
-  });
-  p.on("error",e=>{
-    if(opened) return;
-    if(e.type==="unavailable-id"){
-      try{p.destroy();}catch(_){}
-      /* Neuer Raum: der zufaellige Code war schon vergeben – einfach den naechsten nehmen. */
-      if(!restore){
-        if(attempt<8){ setTimeout(()=>claim(genCode(),null,attempt+1),120); return; }
-        fail("Es ließ sich gerade kein freier Raum-Code finden. Versuch es gleich nochmal.");
-        return;
-      }
-      /* Eigener Raum: der Verbindungsdienst haelt den Code oft noch kurz fest,
-         wenn der Tab eben erst verlassen wurde. Das loest sich von selbst –
-         also geduldig weiter versuchen und dabei sagen, was los ist. */
-      if(attempt<16){
-        banner="Dein Raum "+code+" wird gleich wieder geöffnet… ("+(attempt+1)+". Versuch)";
-        render();
-        setTimeout(()=>claim(code,restore,attempt+1),Math.min(1000+attempt*350,4000));
-        return;
-      }
-      banner="";
-      fehlerRaum=code;
-      fail("Dein alter Raum "+code+" ist beim Verbindungsdienst noch belegt. Das löst sich meist innerhalb einer Minute von selbst – warte kurz und versuch es nochmal, oder mach mit einem neuen Raum weiter.");
+
+/* Prueft, ob der Code frei ist. Der fuehrende Spieler hinterlaesst beim Relay
+   eine Notiz, die stehen bleibt – daran erkennt man belegte Raeume. */
+function belegeCode(code,restore,versuch){
+  let entschieden=false;
+  const horcher=(topic,nutz)=>{
+    if(entschieden||topic!==tOwner(code)) return;
+    const roh=nutz.toString();
+    if(!roh) return;                                   // geloeschte Notiz
+    let d=null; try{ d=JSON.parse(roh); }catch(_){ return; }
+    if(!d||d.pid===myPid) return;                      // unsere eigene alte Notiz
+    if(Date.now()-(d.ts||0)>90000) return;             // laengst verwaist
+    entschieden=true;
+    relais.removeListener("message",horcher);
+    relais.unsubscribe(tOwner(code));
+    if(!restore){
+      if(versuch<8){ belegeCode(genCode(),null,versuch+1); return; }
+      fail("Es ließ sich gerade kein freier Raum-Code finden. Versuch es gleich nochmal.");
       return;
     }
-    fail(peerErr(e));
-  });
-  p.on("disconnected",()=>{ try{p.reconnect();}catch(_){} });
+    fehlerRaum=code;
+    fail("Der Raum "+code+" wird gerade von einem anderen Gerät geführt. Mach mit einem neuen Raum weiter.");
+  };
+  relais.on("message",horcher);
+  relais.subscribe(tOwner(code),{qos:0});
+  /* Eine stehengebliebene Notiz kommt sofort. Kommt keine, ist der Code frei. */
+  setTimeout(()=>{
+    if(entschieden) return;
+    entschieden=true;
+    relais.removeListener("message",horcher);
+    relais.unsubscribe(tOwner(code));
+    oeffneRaum(code,restore);
+  },1500);
 }
+
+function oeffneRaum(code,restore){
+  roomCode=code; raumOffen=true;
+  if(restore){
+    H=restore; H.kicked=H.kicked||[]; H.chat=H.chat||[];
+    H.tKing=H.tKing||0; H.tAnswer=H.tAnswer||0;
+    H.used=H.used||[]; H.fragen=H.fragen||[]; H.kingAntworten=H.kingAntworten||[]; H.verlauf=H.verlauf||[];
+    H.qi=H.qi||0; H.kingZaehler=H.kingZaehler||0;
+    if(!Array.isArray(H.kat)||!H.kat.length) H.kat=KATEGORIEN.map(function(k){return k.id;});
+    H.maxRounds=H.maxRounds||0; H.proRunde=H.proRunde||5; H.startLeben=H.startLeben||3;
+    const me=hp(myPid);
+    if(me){ me.online=true; me.connId=myPid; myName=me.name; me.emoji=myEmoji||me.emoji||""; me.color=(myColor===0||myColor)?myColor:me.color; }
+    else H.players.push(neuerSpieler());
+  }else{
+    H=freshState();
+    H.players.push(neuerSpieler());
+  }
+  relais.subscribe(tHost(code),{qos:0});
+  zeigeRaumAn();
+  clearInterval(ownerTimer);
+  ownerTimer=setInterval(zeigeRaumAn,20000);      // Notiz frisch halten
+  screen="game"; banner=""; broadcast();
+  clearInterval(sweepTimer); sweepTimer=setInterval(hostSweep,2000);
+}
+function zeigeRaumAn(){
+  if(!relais||!relais.connected||!roomCode) return;
+  try{ relais.publish(tOwner(roomCode),JSON.stringify({pid:myPid,ts:Date.now()}),{qos:0,retain:true}); }catch(_){}
+}
+
+/* --- Raum beitreten ------------------------------------------------------ */
+
+let lastHb=Date.now();
 
 function startClient(code,name){
   isHost=false; myName=name; roomCode=code; screen="connecting"; render();
   LS.set("mm_room",{code,name,ts:Date.now(),owner:myPid});
-  const p=new Peer(PEEROPT());
-  peer=p;
-  p.on("open",()=>connectHost());
-  p.on("error",e=>{
-    if(e.type==="peer-unavailable"){ scheduleRetry(); return; }
-    if(screen==="connecting"&&retries===0) fail(peerErr(e)); else scheduleRetry();
+  let gabsRaum=false;
+  const c=verbinde(erste=>{
+    relais.subscribe(tMir(code,myPid),{qos:0});
+    relais.subscribe(tOwner(code),{qos:0});
+    meldeAn();
+    if(erste) setTimeout(()=>{                       // gibt es den Raum ueberhaupt?
+      if(!gabsRaum&&!S) fail("Diesen Raum gibt es nicht (mehr). Prüfe den Code – oder lass dir einen neuen Link schicken.");
+    },9000);
   });
-  p.on("disconnected",()=>{ try{p.reconnect();}catch(_){} });
-}
-function connectHost(){
-  if(!peer||peer.destroyed) return;
-  let c;
-  try{ c=peer.connect(PREFIX+roomCode,{reliable:true}); }catch(_){ scheduleRetry(); return; }
-  hostConn=c;
-  const guard=setTimeout(()=>{ if(!c.open) scheduleRetry(); },9000);
-  c.on("open",()=>{
-    clearTimeout(guard); retries=0; banner=""; lastHb=Date.now();
-    screen="game"; c.send({t:"join",pid:myPid,name:myName,emoji:myEmoji,color:myColor}); render();
-  });
-  c.on("data",d=>{
+  if(!c) return;
+  c.on("message",(topic,nutz)=>{
+    const roh=nutz.toString();
+    if(topic===tOwner(code)){ if(roh) gabsRaum=true; return; }
+    if(topic!==tMir(code,myPid)) return;
+    let d=null; try{ d=JSON.parse(roh); }catch(_){ return; }
     if(!d) return;
-    lastHb=Date.now();
+    gabsRaum=true; lastHb=Date.now(); retries=0;
     if(d.t==="hb"){ if(banner){ banner=""; render(); } return; }
     if(d.t==="state"){ S=d.s; screen="game"; banner=""; render(); }
     else if(d.t==="kick"||d.t==="denied"){ LS.delMine("mm_room"); screen="kicked"; teardown(); render(); }
   });
-  c.on("close",()=>{ clearTimeout(guard); scheduleRetry(); });
-  c.on("error",()=>{ clearTimeout(guard); scheduleRetry(); });
 }
-function scheduleRetry(){
-  if(screen==="kicked"||isHost) return;
-  if(retryTimer) return;
+function meldeAn(){
+  sende(tHost(roomCode),{t:"join",from:myPid,pid:myPid,name:myName,emoji:myEmoji,color:myColor});
+}
+
+/* Der Client meldet sich regelmaessig beim Host. */
+setInterval(()=>{
+  if(isHost||!relais||!relais.connected||!roomCode||screen==="kicked") return;
+  sende(tHost(roomCode),{t:"ping",from:myPid});
+},BEAT);
+
+/* Und merkt, wenn der Host verstummt. */
+setInterval(()=>{
+  if(isHost||screen!=="game"||!roomCode) return;
+  if(Date.now()-lastHb<=HOSTDEAD) return;
   retries++;
   if(retries>40){ fail("Der Host ist nicht mehr erreichbar. Wahrscheinlich hat er die Seite geschlossen."); return; }
-  banner="Verbindung unterbrochen – versuche erneut…";
-  if(!S) screen="connecting";
-  render();
-  retryTimer=setTimeout(()=>{ retryTimer=null; connectHost(); },2000);
-}
-let lastHb=Date.now();
-setInterval(()=>{                                   // Client meldet sich beim Host
-  if(isHost||!hostConn||!hostConn.open) return;
-  try{ hostConn.send({t:"ping"}); }catch(_){}
-},BEAT);
-setInterval(()=>{                                   // Client merkt, wenn der Host verstummt
-  if(isHost||screen!=="game"||retryTimer) return;
-  if(Date.now()-lastHb>HOSTDEAD){ try{hostConn&&hostConn.close();}catch(_){} scheduleRetry(); }
+  if(!banner){ banner="Verbindung unterbrochen – versuche erneut…"; render(); }
+  meldeAn();                                   // einfach noch einmal anklopfen
 },4000);
-function teardown(){ try{peer&&peer.destroy();}catch(_){} peer=null;hostConn=null; }
-function peerErr(e){
-  if(e.type==="peer-unavailable") return "Diesen Raum gibt es nicht (mehr).";
-  if(e.type==="network"||e.type==="server-error") return "Keine Verbindung zum Vermittlungsserver. Internet prüfen und neu laden.";
-  if(e.type==="browser-incompatible") return "Dieser Browser unterstützt WebRTC leider nicht.";
-  return "Verbindungsfehler: "+(e.type||e.message||"unbekannt");
-}

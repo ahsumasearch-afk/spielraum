@@ -1,6 +1,6 @@
 /* Grundlagen: Speicher, Identitaet, Hilfsfunktionen, gemeinsamer Zustand. */
 
-const ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", PREFIX="mindm-";   // eigener Raum-Namensraum
+const ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAXAGE=6*3600*1000;
 const app=document.getElementById("app");
 const el=i=>document.getElementById(i);
@@ -158,9 +158,8 @@ if(myPid===LS.get("fi_pid",null)) LS.set("fi_pid_claim",Date.now());
 setInterval(()=>{ if(myPid===LS.get("fi_pid",null)) LS.set("fi_pid_claim",Date.now()); },3000);
 
 /* ============================ Zustand ============================ */
-let peer=null,isHost=false,roomCode="",myName="";
-let conns={};            // Host: connId -> DataConnection
-let hostConn=null;       // Client: Verbindung zum Host
+let isHost=false,roomCode="",myName="";
+let hostConn=null;       // wird beim Aufraeumen zurueckgesetzt
 let S=null;              // öffentlich sichtbarer Zustand
 let H=null;              // Host: vollständiger Zustand
 let screen="start";      // start | invite | connecting | game | error | kicked
