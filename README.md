@@ -12,6 +12,7 @@ per WebRTC direkt zwischen euren Geräten, ein Server ist nicht beteiligt.
 |---|---|---|
 | [Fragen-Impostor](https://ahsumasearch-afk.github.io/impostor/) | Alle beantworten dieselbe Frage – einer nicht. Findet den Lügner. | 3–12 |
 | [Mind-Match](./mind-match/) | Der King antwortet zuerst, alle anderen müssen etwas anderes sagen. | 2–12 |
+| [Wavelength](./wavelength/) | Zwischen zwei Gegensätzen liegt ein verstecktes Ziel – nur das Medium sieht es. | 2–16 |
 
 ## Mind-Match – die Regeln
 
@@ -37,6 +38,25 @@ zählen nicht als Treffer.
 Die Fragen bleiben bewusst unpersönlich: keine Frage verlangt, jemanden aus dem
 eigenen Umfeld zu nennen oder etwas Privates preiszugeben.
 
+## Wavelength – die Regeln
+
+1. Reihum ist ein Spieler das **Medium**. Es sieht als Einziges, wo auf der
+   Skala zwischen zwei Gegensätzen (etwa *kalt* – *heiß*) der Zielbereich liegt.
+2. Das Medium gibt **einen einzigen Hinweis** und sagt danach nichts mehr.
+3. Die anderen drehen den Zeiger dorthin, wo sie das Ziel vermuten.
+4. Im Teammodus tippt die Gegenseite zusätzlich, ob das Ziel weiter **links**
+   oder **rechts** vom Zeiger liegt.
+
+**Punkte:** 4 im Zentrum, 3 im Ring darum, 2 im äußeren Ring, sonst nichts.
+Ein richtiger Links-rechts-Tipp bringt der Gegenseite **+1**. Gespielt wird bis
+10, 20, 30, einer eigenen Zahl – oder ohne Ende.
+
+Zwei Spielarten: **zwei Teams** (ab vier Leuten, beide Teams brauchen mindestens
+zwei) oder **jeder für sich** (ab zwei Leuten, Punkte für alle gemeinsam).
+Es gibt einen Chat für alle und – im Teammodus – einen zweiten nur fürs eigene
+Team. Der Host stellt Spielart, Punktziel und Zeitlimits ein, Aussehen und
+Teamzugehörigkeit lassen sich im Warteraum ändern.
+
 ## Aufbau
 
 ```
@@ -53,6 +73,7 @@ mind-match/         das Spiel (statisch, kein Build)
   js/screens.js     Start-, Einladungs- und Fehlerbildschirme
   js/game.js        die Spielbildschirme
   js/app.js         Start
+wavelength/         gleicher Aufbau; js/karten.js hält die 232 Begriffspaare
 ```
 
 Bei jeder Änderung wird die Versionsnummer in `mind-match/index.html`
