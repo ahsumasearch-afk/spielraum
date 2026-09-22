@@ -38,7 +38,7 @@ function ringstueck(v1,v2,rInnen,rAussen){
 /* Zeichnet die Skala. ziel = Mittelpunkt des Zielbereichs oder null,
    zeiger = Position des Zeigers oder null. */
 function skala(opt){
-  const {ziel, zeiger, karte, beweglich, tipp} = opt;
+  const {ziel, zeiger, karte, beweglich, tipp, alle} = opt;
   const zonen = ziel===null||ziel===undefined ? "" : `
     <path d="${ringstueck(ziel-8.5,ziel+8.5,RINNEN,RAUSSEN)}" class="zone z2"/>
     <path d="${ringstueck(ziel-5,ziel+5,RINNEN,RAUSSEN)}" class="zone z3"/>
@@ -61,6 +61,19 @@ function skala(opt){
     const p=punkt(tipp,RAUSSEN-4), f=punkt(tipp,RINNEN-16);
     tippZeichen=`<line x1="${f.x}" y1="${f.y}" x2="${p.x}" y2="${p.y}" class="nadel tipp"/>`;
   }
+  /* Bei "Jeder fuer sich" stehen am Ende alle Zeiger nebeneinander auf der
+     Skala – jeder in der Farbe seines Besitzers. */
+  let vieleZeiger="";
+  if(alle&&alle.length){
+    vieleZeiger=alle.map(x=>{
+      if(x.wert===null||x.wert===undefined) return "";
+      const p=punkt(x.wert,RAUSSEN-4), f=punkt(x.wert,RINNEN-6);
+      const farbe=farbeVon(x.spieler||{});
+      return `<line x1="${f.x}" y1="${f.y}" x2="${p.x}" y2="${p.y}" class="nadel mini" stroke="${farbe}"/>
+              <circle cx="${p.x}" cy="${p.y}" r="9" fill="${farbe}" class="minikopf"/>
+              <text x="${p.x}" y="${p.y+3.5}" class="minitext">${esc((x.spieler&&x.spieler.name||"?").slice(0,1).toUpperCase())}</text>`;
+    }).join("");
+  }
 
   return `<div class="skalawrap">
     <svg viewBox="0 0 400 214" class="skala ${beweglich?"beweglich":""}" id="skala"
@@ -69,6 +82,7 @@ function skala(opt){
       ${zonen}
       ${striche.join("")}
       ${tippZeichen}
+      ${vieleZeiger}
       ${nadel}
       <circle cx="${MITTE.x}" cy="${MITTE.y}" r="9" class="achse"/>
     </svg>
@@ -351,7 +365,7 @@ function viewLobby(){
        </div>
        <div class="note">${teams
          ? "Zwei Teams treten gegeneinander an. Ein Team rät, das andere tippt zusätzlich auf links oder rechts."
-         : "Reihum ist einer das Medium, alle anderen raten gemeinsam. Punkte gibt es für alle zusammen – auch fürs Medium."}</div>
+         : "Reihum ist einer das Medium. Alle anderen tippen verdeckt für sich und bekommen jeder die Punkte für den eigenen Abstand. Das Medium geht leer aus – es kannte das Ziel ja."}</div>
 
        <label style="margin-top:16px">Spiel geht bis</label>
        <div class="seg" style="grid-template-columns:repeat(4,1fr)">${[10,20,30,0].map(n=>
@@ -547,7 +561,16 @@ function viewHinweis(me){
 function viewRaten(me){
   const medium=S.players.find(p=>p.pid===S.mediumId)||{name:"?"};
   const darf=raetMit(me);
-  const wert = zeigerEntwurf!==null ? zeigerEntwurf : S.zeiger;
+  const einzeln=S.modus!=="teams";
+  /* Im Teammodus dreht das Team einen gemeinsamen Zeiger. Bei "Jeder für sich"
+     hat jeder seinen eigenen – er wird erst beim Aufdecken sichtbar. */
+  const wert = zeigerEntwurf!==null ? zeigerEntwurf
+             : einzeln ? (meinTipp!==null?meinTipp:50)
+             : S.zeiger;
+  const schonFest = einzeln && (S.fertig||[]).indexOf(myPid)>=0;
+  const offen = einzeln
+    ? S.players.filter(p=>!p.waiting&&p.pid!==S.mediumId&&(S.fertig||[]).indexOf(p.pid)<0).length
+    : 0;
 
   const hinweisKarte=`<div class="card glow center rise" style="padding:20px 18px">
       <div class="qlbl">📡 ${esc(medium.name)} sagt</div>
@@ -557,17 +580,24 @@ function viewRaten(me){
   let unten;
   if(darf){
     unten=`<div class="card rise">
-        ${skala({ziel:binMedium()?meinZiel:null, zeiger:wert, karte:S.karte, beweglich:true})}
-        <input type="range" id="regler" min="0" max="100" step="0.5" value="${wert}"
-               aria-label="Position auf der Skala" class="regler">
+        ${skala({ziel:null, zeiger:wert, karte:S.karte, beweglich:!schonFest})}
+        ${schonFest?"":`<input type="range" id="regler" min="0" max="100" step="0.5" value="${wert}"
+               aria-label="Position auf der Skala" class="regler">`}
         <div class="zeigerwert">Position <b>${Math.round(wert)}</b> von 100</div>
-        <button id="fest">Zeiger festlegen</button>
-        <div class="hint">Alle im Team dürfen schieben – ihr seht die Bewegung gegenseitig. Festlegen kann jeder.</div>
+        ${schonFest
+          ? `<div class="card tight center" style="margin:0"><span class="spin"></span>
+               Festgelegt – ${offen?`noch ${zahlwort(offen,"Person","Personen")}`:"gleich geht es weiter"}</div>`
+          : `<button id="fest">${einzeln?"Meinen Tipp abgeben":"Zeiger festlegen"}</button>`}
+        <div class="hint">${einzeln
+          ? "Jeder tippt für sich – niemand sieht deinen Zeiger, bis alle abgegeben haben. Punkte gibt es für deinen eigenen Abstand."
+          : "Alle im Team dürfen schieben – ihr seht die Bewegung gegenseitig. Festlegen kann jeder."}</div>
       </div>`;
   }else if(binMedium()){
     unten=`<div class="card rise">
-        ${skala({ziel:meinZiel, zeiger:wert, karte:S.karte, beweglich:false})}
-        <div class="note center">Du siehst mit, wohin sie drehen – sagen darfst du jetzt nichts mehr.</div>
+        ${skala({ziel:meinZiel, zeiger:einzeln?null:wert, karte:S.karte, beweglich:false})}
+        <div class="note center">${einzeln
+          ? `Die anderen tippen verdeckt für sich. ${offen?`Noch ${zahlwort(offen,"Person ist","Personen sind")} dran.`:""}`
+          : "Du siehst mit, wohin sie drehen – sagen darfst du jetzt nichts mehr."}</div>
       </div>`;
   }else{
     unten=`<div class="card rise">
@@ -582,17 +612,21 @@ function viewRaten(me){
     playersCard("spiel"),chatSpalte()));
   wire();
   if(darf){
-    skalaBedienen(
+    if(!schonFest) skalaBedienen(
       w=>{ zeigerEntwurf=Math.round(w*10)/10;
            const s=el("skala"), r=el("regler");
            if(r) r.value=zeigerEntwurf;
-           const wert=app.querySelector(".zeigerwert b"); if(wert) wert.textContent=Math.round(zeigerEntwurf);
+           const anzeige=app.querySelector(".zeigerwert b"); if(anzeige) anzeige.textContent=Math.round(zeigerEntwurf);
            if(s) zeichneNadel(s,zeigerEntwurf); },
-      ()=>{ if(zeigerEntwurf!==null) act({t:"zeiger",wert:zeigerEntwurf}); }
+      /* Nur im Teammodus wandert jede Bewegung sofort zu den anderen – bei
+         "Jeder für sich" bleibt der eigene Zeiger bis zur Abgabe geheim. */
+      ()=>{ if(!einzeln&&zeigerEntwurf!==null) act({t:"zeiger",wert:zeigerEntwurf}); }
     );
-    el("fest").onclick=()=>{
-      if(zeigerEntwurf!==null) act({t:"zeiger",wert:zeigerEntwurf});
-      act({t:"fest"});
+    if(el("fest")) el("fest").onclick=()=>{
+      const w = zeigerEntwurf!==null ? zeigerEntwurf : wert;
+      if(einzeln){ act({t:"tipp",wert:w}); }
+      else { act({t:"zeiger",wert:w}); act({t:"fest"}); }
+      zeigerEntwurf=null;
     };
   }
 }
@@ -643,30 +677,57 @@ function viewAufloesung(me){
   const r=S.letzteRunde||{};
   const medium=S.players.find(p=>p.pid===r.mediumId)||{name:"?"};
   const teams=S.modus==="teams";
-  const meins = teams ? (me&&me.team===r.team) : true;
-  const gut = r.treffer>0;
-
   const darfWeiter=isHost||binMedium();
+  const spielerVon=pid=>S.players.find(p=>p.pid===pid)||{name:"?"};
+
+  /* Bei "Jeder für sich" zählt für die Überschrift der eigene Tipp. */
+  const meinErgebnis = !teams && r.ergebnisse
+    ? r.ergebnisse.find(x=>x.pid===myPid) : null;
+  const gut = teams ? r.treffer>0 : (meinErgebnis ? meinErgebnis.punkte>0 : r.treffer>0);
+  const wort=n=>n===4?"Volltreffer":n===3?"Ganz nah dran":n===2?"Noch im Ziel":"Daneben";
+
+  const kopf = teams
+    ? `<div class="verdict ${gut?"g":"r"}">${wort(r.treffer)}</div>
+       <div class="vsub">${r.treffer} ${r.treffer===1?"Punkt":"Punkte"} für ${esc(teamName(r.team))}
+         · ${r.abstand} Schritte vom Zentrum entfernt</div>`
+    : binMedium()
+      ? `<div class="verdict g">Aufgedeckt</div>
+         <div class="vsub">Du warst das Medium – du bekommst diese Runde keine Punkte.
+           ${r.bestePid?`Am nächsten dran war <b>${esc(spielerVon(r.bestePid).name)}</b>.`:""}</div>`
+      : meinErgebnis
+        ? `<div class="verdict ${gut?"g":"r"}">${wort(meinErgebnis.punkte)}</div>
+           <div class="vsub">${meinErgebnis.punkte} ${meinErgebnis.punkte===1?"Punkt":"Punkte"} für dich${
+             meinErgebnis.abstand!==null?` · ${meinErgebnis.abstand} Schritte vom Zentrum entfernt`:" – kein Tipp abgegeben"}</div>`
+        : `<div class="verdict r">Nicht dabei</div><div class="vsub">Du hast diese Runde ausgesetzt.</div>`;
+
+  const alleZeiger = !teams&&r.ergebnisse
+    ? r.ergebnisse.map(x=>({wert:x.wert, spieler:spielerVon(x.pid)})) : null;
 
   paint(HEAD+frame(
-    `<div class="card ${gut?"win":"lose"} center rise" style="padding:24px 20px">
-       <div class="verdict ${gut?"g":"r"}">${
-         r.treffer===4?"Volltreffer":r.treffer===3?"Ganz nah dran":r.treffer===2?"Noch im Ziel":"Daneben"}</div>
-       <div class="vsub">${r.treffer} ${r.treffer===1?"Punkt":"Punkte"} für ${teams?esc(teamName(r.team)):"alle"}
-         · ${r.abstand} Schritte vom Zentrum entfernt</div>
-     </div>
+    `<div class="card ${gut?"win":"lose"} center rise" style="padding:24px 20px">${kopf}</div>
      <div class="card rise">
-       ${skala({ziel:r.ziel, zeiger:r.zeiger, karte:r.karte, beweglich:false})}
+       ${skala({ziel:r.ziel, zeiger:teams?r.zeiger:null, alle:alleZeiger, karte:r.karte, beweglich:false})}
        <div class="aufl">
          <div class="zeile"><span class="pts">📡 Hinweis</span><b>„${esc(r.hinweis||"")}“</b></div>
          <div class="zeile"><span class="pts">vom Medium</span><b>${esc(medium.name)}</b></div>
          <div class="zeile"><span class="pts">Ziel lag bei</span><b>${Math.round(r.ziel)}</b></div>
-         <div class="zeile"><span class="pts">Zeiger stand auf</span><b>${Math.round(r.zeiger)}</b></div>
+         ${teams?`<div class="zeile"><span class="pts">Zeiger stand auf</span><b>${Math.round(r.zeiger)}</b></div>`:""}
          ${teams&&r.seite?`<div class="zeile"><span class="pts">Tipp der Gegenseite</span>
             <b class="${r.seiteRichtig?"gut":"schlecht"}">${r.seite==="links"?"weiter links":"weiter rechts"} –
             ${r.seiteRichtig?"richtig, +1":"daneben"}</b></div>`:""}
        </div>
      </div>
+     ${!teams&&r.ergebnisse?`<div class="card rise"><h2>Wer wie nah dran war</h2>
+       <ul class="plist tippliste">${r.ergebnisse.map((x,i)=>{
+         const p=spielerVon(x.pid);
+         return `<li>
+           <span class="pts" style="width:24px">${i+1}.</span>${avatar(p)}
+           <span class="nm">${esc(p.name)}${x.pid===myPid?'<span class="tag you">du</span>':""}
+             <small>${x.wert===null?"nichts abgegeben":"Zeiger auf "+Math.round(x.wert)+" · "+x.abstand+" daneben"}</small></span>
+           <span class="pts ${x.punkte?"ok":""}">+${x.punkte}</span></li>`;
+       }).join("")}</ul>
+       <div class="note">${esc(medium.name)} war das Medium und bekommt als solches keine Punkte.</div>
+     </div>`:""}
      ${teams?`<div class="card rise center">
         <div class="standgross"><span class="ta">${S.punkteA}</span> : <span class="tb">${S.punkteB}</span></div>
         <div class="note" style="margin-top:2px">${teamName("A")} gegen ${teamName("B")}${S.zielPunkte?` · bis ${S.zielPunkte}`:""}</div>

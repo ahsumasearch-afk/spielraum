@@ -10,7 +10,7 @@ per WebRTC direkt zwischen euren Geräten, ein Server ist nicht beteiligt.
 
 | Spiel | Worum es geht | Spieler |
 |---|---|---|
-| [Fragen-Impostor](https://ahsumasearch-afk.github.io/impostor/) | Alle beantworten dieselbe Frage – einer nicht. Findet den Lügner. | 3–12 |
+| [Fragen-Impostor](./impostor/) | Alle beantworten dieselbe Frage – einer nicht. Findet den Lügner. | 3–12 |
 | [Mind-Match](./mind-match/) | Der King antwortet zuerst, alle anderen müssen etwas anderes sagen. | 2–12 |
 | [Wavelength](./wavelength/) | Zwischen zwei Gegensätzen liegt ein verstecktes Ziel – nur das Medium sieht es. | 2–16 |
 
@@ -51,8 +51,16 @@ eigenen Umfeld zu nennen oder etwas Privates preiszugeben.
 Ein richtiger Links-rechts-Tipp bringt der Gegenseite **+1**. Gespielt wird bis
 10, 20, 30, einer eigenen Zahl – oder ohne Ende.
 
-Zwei Spielarten: **zwei Teams** (ab vier Leuten, beide Teams brauchen mindestens
-zwei) oder **jeder für sich** (ab zwei Leuten, Punkte für alle gemeinsam).
+Zwei Spielarten:
+
+* **Zwei Teams** ab vier Leuten – beide Teams brauchen mindestens zwei, weil sie
+  abwechselnd drankommen. Das Team am Zug dreht einen gemeinsamen Zeiger.
+* **Jeder für sich** ab zwei Leuten – jeder tippt **verdeckt für sich** und
+  bekommt die Punkte für den **eigenen** Abstand. Beim Aufdecken stehen alle
+  Zeiger nebeneinander auf der Skala.
+
+Das **Medium bekommt in beiden Spielarten keine Punkte** – es kannte das Ziel ja.
+Im Teammodus zählt der Rundenertrag trotzdem voll für sein Team.
 Es gibt einen Chat für alle und – im Teammodus – einen zweiten nur fürs eigene
 Team. Der Host stellt Spielart, Punktziel und Zeitlimits ein, Aussehen und
 Teamzugehörigkeit lassen sich im Warteraum ändern.

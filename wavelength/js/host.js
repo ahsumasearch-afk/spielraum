@@ -9,8 +9,9 @@ function freshState(){
           karte:null,                 // [links, rechts]
           ziel:50,                    // 0-100, geheim bis zur Aufloesung
           hinweis:"",
-          zeiger:50,                  // Tipp des ratenden Teams
+          zeiger:50,                  // gemeinsamer Zeiger des Teams (Teammodus)
           zeigerGesetzt:false,
+          tipps:{},                   // "Jeder fuer sich": pid -> eigener Tipp
           seite:null,                 // "links" oder "rechts" – Tipp der Gegner
           letzteRunde:null,           // Ergebnis der letzten Runde
           punkteA:0, punkteB:0,       // Teamstand
@@ -153,6 +154,8 @@ function hostStartRound(){
   H.karte=zieheKarte();
   H.ziel=zieheZiel();
   H.hinweis=""; H.zeiger=50; H.zeigerGesetzt=false; H.seite=null; H.letzteRunde=null;
+  H.tipps={};
+  H.players.forEach(p=>{ p.gesendeterTipp=null; });
   H.phase="hinweis"; setDeadline();
   clearTimeout(graceTimer);
   broadcast();
@@ -170,7 +173,25 @@ function hinweisGeben(text){
   H.phase="raten"; setDeadline();
   broadcast();
 }
-/* Das ratende Team legt den Zeiger fest. */
+/* "Jeder fuer sich": ein Spieler legt seinen eigenen Tipp fest. */
+function tippSetzen(pid,wert){
+  if(H.phase!=="raten"||H.modus==="teams") return;
+  const p=hp(pid); if(!p||p.waiting||pid===H.mediumId) return;
+  const w=Number(wert);
+  if(!isFinite(w)) return;
+  H.tipps[pid]=Math.max(0,Math.min(100,Math.round(w*10)/10));
+  p.gesendeterTipp=null;
+  pruefeTipps();
+  broadcast();
+}
+/* Haben alle, die da sind, getippt? Dann aufdecken. */
+function pruefeTipps(){
+  if(H.phase!=="raten"||H.modus==="teams") return;
+  const offen=raterInnen().filter(p=>p.online&&H.tipps[p.pid]===undefined);
+  if(!offen.length) aufloesen();
+}
+
+/* Das ratende Team legt den gemeinsamen Zeiger fest (Teammodus). */
 function zeigerFest(){
   if(H.phase!=="raten") return;
   H.zeigerGesetzt=true;
@@ -193,39 +214,65 @@ function punkteFuer(abstand){
   return 0;
 }
 function aufloesen(){
+  if(H.modus==="teams") aufloesenTeams();
+  else aufloesenEinzeln();
+  H.phase="aufloesung"; H.deadline=0;
+  if(zielErreicht()) H.phase="podium";
+  broadcast();
+}
+
+function aufloesenTeams(){
   const abstand=Math.abs(H.zeiger-H.ziel);
   const treffer=punkteFuer(abstand);
 
   let bonus=0, seiteRichtig=null;
-  if(H.modus==="teams"&&H.seite){
+  if(H.seite){
     const wirklich = H.ziel<H.zeiger ? "links" : H.ziel>H.zeiger ? "rechts" : null;
     seiteRichtig = wirklich!==null && H.seite===wirklich;
     bonus = seiteRichtig?1:0;
   }
-
-  if(H.modus==="teams"){
-    if(H.aktivesTeam==="A"){ H.punkteA+=treffer; H.punkteB+=bonus; }
-    else                   { H.punkteB+=treffer; H.punkteA+=bonus; }
-    /* Fuer die Spielerliste zaehlen wir den Anteil auch je Person mit. */
-    mit().forEach(p=>{
-      if(p.team===H.aktivesTeam) p.score+=treffer; else p.score+=bonus;
-    });
-  }else{
-    /* Jeder fuer sich: die Punkte gehen an alle Ratenden und ans Medium,
-       denn ein guter Hinweis ist genauso viel wert wie ein guter Tipp. */
-    raterInnen().forEach(p=>{ p.score+=treffer; });
-    const m=hp(H.mediumId); if(m) m.score+=treffer;
-  }
+  if(H.aktivesTeam==="A"){ H.punkteA+=treffer; H.punkteB+=bonus; }
+  else                   { H.punkteB+=treffer; H.punkteA+=bonus; }
+  /* Fuer die Spielerliste zaehlen wir den Anteil auch je Person mit – das
+     Medium geht dabei leer aus, es hat ja nicht geraten. */
+  mit().forEach(p=>{
+    if(p.pid===H.mediumId) return;
+    if(p.team===H.aktivesTeam) p.score+=treffer; else p.score+=bonus;
+  });
 
   H.letzteRunde={
     ziel:H.ziel, zeiger:H.zeiger, abstand:Math.round(abstand*10)/10,
     treffer, bonus, seite:H.seite, seiteRichtig,
-    karte:H.karte, hinweis:H.hinweis,
-    mediumId:H.mediumId, team:H.aktivesTeam
+    karte:H.karte, hinweis:H.hinweis, mediumId:H.mediumId, team:H.aktivesTeam
   };
-  H.phase="aufloesung"; H.deadline=0;
-  if(zielErreicht()) H.phase="podium";
-  broadcast();
+}
+
+/* Jeder fuer sich: jeder hat seinen eigenen Tipp abgegeben und bekommt dafuer
+   seine eigene Punktzahl. Das Medium bekommt nichts – es kannte das Ziel. */
+function aufloesenEinzeln(){
+  const ergebnisse=[];
+  raterInnen().forEach(p=>{
+    const w=H.tipps[p.pid];
+    if(w===undefined){                       // nichts abgegeben, etwa Zeit abgelaufen
+      ergebnisse.push({pid:p.pid, wert:null, abstand:null, punkte:0});
+      return;
+    }
+    const abstand=Math.abs(w-H.ziel);
+    const punkte=punkteFuer(abstand);
+    p.score+=punkte;
+    ergebnisse.push({pid:p.pid, wert:w, abstand:Math.round(abstand*10)/10, punkte});
+  });
+  ergebnisse.sort((a,b)=>b.punkte-a.punkte||(a.abstand??999)-(b.abstand??999));
+
+  const bester=ergebnisse.length?ergebnisse[0]:null;
+  H.letzteRunde={
+    ziel:H.ziel, ergebnisse,
+    treffer: bester?bester.punkte:0,
+    abstand: bester?bester.abstand:null,
+    zeiger: bester&&bester.wert!==null?bester.wert:H.ziel,
+    karte:H.karte, hinweis:H.hinweis, mediumId:H.mediumId, team:null,
+    bestePid: bester?bester.pid:null
+  };
 }
 function zielErreicht(){
   if(!H.zielPunkte) return false;
@@ -276,7 +323,7 @@ function hostSweep(){
   });
   if(H.deadline&&Date.now()>H.deadline){
     if(H.phase==="hinweis"){ hinweisGeben(H.hinweis||"—"); return; }
-    if(H.phase==="raten"){ zeigerFest(); return; }
+    if(H.phase==="raten"){ if(H.modus==="teams") zeigerFest(); else aufloesen(); return; }
     H.deadline=0;
   }
   const vorher=H.phase;
@@ -290,8 +337,10 @@ function pruefe(){
   if(H.phase==="lobby"||H.phase==="podium"||H.phase==="aufloesung") return;
   const m=hp(H.mediumId);
   if(!m||(!m.online&&Date.now()-(m.offSince||0)>GRACE)){
-    H.phase="lobby"; H.deadline=0;
+    H.phase="lobby"; H.deadline=0; return;
   }
+  /* Wer weg ist, soll die Runde nicht aufhalten. */
+  if(H.phase==="raten"&&H.modus!=="teams") pruefeTipps();
 }
 
 /* ---------------------------------------------------------------- Zustand */
@@ -303,6 +352,8 @@ function publicState(){
     modus:H.modus, mediumId:H.mediumId, aktivesTeam:H.aktivesTeam,
     karte:H.karte, hinweis:H.hinweis,
     zeiger:H.zeiger, zeigerGesetzt:H.zeigerGesetzt, seite:H.seite,
+    /* Waehrend des Ratens verraten wir nur, wer schon fertig ist – nicht wohin. */
+    fertig: H.modus==="teams" ? [] : Object.keys(H.tipps||{}),
     /* Das Ziel geht erst bei der Aufloesung an alle. Vorher bekommt es nur
        das Medium – auf seinem eigenen Weg, nicht im gemeinsamen Zustand. */
     ziel: zeigen ? H.ziel : null,
@@ -328,6 +379,13 @@ function verteile(s){
       p.gesendetesZiel=H.ziel;
       sendTo(p,{t:"ziel",z:H.ziel});
     }
+    if(p.pid!==myPid&&H.modus!=="teams"){
+      const w=(H.tipps||{})[p.pid];
+      if(w!==undefined&&p.gesendeterTipp!==w){
+        p.gesendeterTipp=w;
+        sendTo(p,{t:"meintipp",w});          // damit ein Neuladen den Tipp nicht verliert
+      }
+    }
     if(p.pid!==myPid&&H.modus==="teams"){
       const liste=teamListe(p.team);
       if(p.gesendeterChat!==liste.length){
@@ -342,6 +400,7 @@ function broadcast(){
   const s=publicState();
   S=s;
   meinZiel = (H.mediumId===myPid&&H.phase!=="lobby"&&H.phase!=="podium") ? H.ziel : null;
+  meinTipp = H.modus==="teams" ? null : ((H.tipps||{})[myPid]!==undefined?H.tipps[myPid]:null);
   if(H.modus==="teams"){ const me=hp(myPid); if(me) teamChat=teamListe(me.team).slice(-50); }
   saveHost(); render();
   if(netzTimer){ nochMal=true; return; }
@@ -377,8 +436,11 @@ function hostHandle(connId,pid,msg){
     }
     case "fest":
       if(H.phase!=="raten"||pid===H.mediumId) return;
-      if(H.modus==="teams"&&p.team!==H.aktivesTeam) return;
+      if(H.modus!=="teams") return;                 // dort zaehlt der eigene Tipp
+      if(p.team!==H.aktivesTeam) return;
       zeigerFest(); return;
+    case "tipp":
+      tippSetzen(pid,msg.wert); return;
     case "seite":
       if(H.phase!=="seite") return;
       if(H.modus==="teams"&&p.team===H.aktivesTeam) return;

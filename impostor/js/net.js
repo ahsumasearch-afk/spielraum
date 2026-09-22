@@ -26,7 +26,7 @@ const RELAYS=[
   "wss://mqtt-dashboard.com:8884/mqtt",
   "wss://broker.emqx.io:8084/mqtt"
 ];
-const APP="spielraum/wavelength/";           // eigener Bereich je Spiel
+const APP="spielraum/impostor/";            // eigener Bereich je Spiel
 
 let relais=null;                            // Verbindung zum Relay-Dienst
 let relaisNr=0;                             // welcher Dienst gerade dran ist
@@ -154,7 +154,7 @@ function startHost(name,resume){
 /* Der eigene Eintrag – der Host legt sich selbst mit an. */
 function neuerSpieler(){
   return {pid:myPid,name:myName,emoji:myEmoji,color:myColor,score:0,
-          team:"A",online:true,connId:myPid};
+          answer:null,vote:null,question:"",online:true,connId:myPid};
 }
 
 /* Prueft, ob der Code frei ist. Der fuehrende Spieler hinterlaesst beim Relay
@@ -195,14 +195,12 @@ function oeffneRaum(code,restore){
   roomCode=code; raumOffen=true;
   if(restore){
     H=restore; H.kicked=H.kicked||[]; H.chat=H.chat||[];
-    H.teamchat=H.teamchat||{A:[],B:[]};
-    H.used=H.used||[]; H.tipps=H.tipps||{};
-    H.modus = H.modus==="einzeln" ? "einzeln" : "teams";
-    H.punkteA=H.punkteA||0; H.punkteB=H.punkteB||0;
-    H.zielPunkte = typeof H.zielPunkte==="number" ? H.zielPunkte : 10;
-    H.tHinweis=H.tHinweis||0; H.tRaten=H.tRaten||0; H.reihum=H.reihum||0;
-    H.aktivesTeam = H.aktivesTeam==="B" ? "B" : "A";
-    H.players.forEach(p=>{ if(p.team!=="A"&&p.team!=="B") p.team="A"; });
+    H.tAnswer=H.tAnswer||0; H.tTalk=H.tTalk||0; H.tVote=H.tVote||0;
+    H.used=H.used||[];
+    /* Frueher bedeutete eine leere Liste "alle" – jetzt steht sie ausdruecklich drin. */
+    if(!Array.isArray(H.kat)||!H.kat.length) H.kat=KATEGORIEN.map(function(k){return k.id;});
+    H.maxRounds=H.maxRounds||0; H.impCount=H.impCount||1; H.impIds=H.impIds||[];
+    H.impRandom=!!H.impRandom;
     const me=hp(myPid);
     if(me){ me.online=true; me.connId=myPid; myName=me.name; me.emoji=myEmoji||me.emoji||""; me.color=(myColor===0||myColor)?myColor:me.color; }
     else H.players.push(neuerSpieler());
@@ -228,7 +226,7 @@ let lastHb=Date.now();
 
 function startClient(code,name){
   isHost=false; myName=name; roomCode=code; screen="connecting"; render();
-  LS.set("wl_room",{code,name,ts:Date.now(),owner:myPid});
+  LS.set("fi_room",{code,name,ts:Date.now(),owner:myPid});
   let gabsRaum=false;
   const c=verbinde(erste=>{
     relais.subscribe(tMir(code,myPid),{qos:1});
@@ -248,13 +246,10 @@ function startClient(code,name){
     if(!d) return;
     gabsRaum=true; lastHb=Date.now(); retries=0;
     if(d.t==="hb"){ if(banner){ banner=""; render(); } return; }
-    /* Der Zielbereich geht nur an das Medium, der Teamchat nur an das eigene
-       Team – beides getrennt vom gemeinsamen Zustand. */
-    if(d.t==="ziel"){ meinZiel=d.z; render(); return; }
-    if(d.t==="meintipp"){ meinTipp=d.w; render(); return; }
-    if(d.t==="tc"){ teamChat=d.c||[]; render(); return; }
+    /* Die eigene Frage kommt getrennt und nur, wenn sie sich geaendert hat. */
+    if(d.t==="q"){ myQuestion=d.q||""; render(); return; }
     if(d.t==="state"){ S=d.s; screen="game"; banner=""; render(); }
-    else if(d.t==="kick"||d.t==="denied"){ LS.delMine("wl_room"); screen="kicked"; teardown(); render(); }
+    else if(d.t==="kick"||d.t==="denied"){ LS.delMine("fi_room"); screen="kicked"; teardown(); render(); }
   });
 }
 function meldeAn(){

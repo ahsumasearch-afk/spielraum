@@ -393,11 +393,9 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
   .startprofil{order:2}
 }
 
-/* ===================== Wavelength ===================== */
-
 /* Zurueck zur Spielauswahl – steht als beschrifteter Knopf ueber dem Logo,
    damit klar ist, wohin er fuehrt. */
-.zurueck{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;
+.zurueck{display:inline-flex;align-items:center;gap:9px;
   margin-bottom:14px;padding:9px 16px 9px 12px;border-radius:12px;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
   color:#fff;text-decoration:none;font-size:13.5px;font-weight:600;
@@ -409,114 +407,4 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
 .zurueck:hover .pf{background:var(--p)}
 .solo .zurueck,.start .zurueck{display:flex;width:max-content;margin:0 auto 18px}
 /* Auf dem Handy die volle Breite – da ist ein schmaler Pfeil schnell uebersehen. */
-@media(max-width:560px){ .zurueck{width:100%;justify-content:center;align-self:stretch} }
-
-/* Verbindungstest */
-.netzzeile{display:flex;justify-content:center;margin:6px 0 14px}
-.netzzeile button{width:auto;padding:10px 20px;font-size:13.5px}
-.pruef{display:flex;align-items:flex-start;gap:12px;padding:12px 0;
-  border-bottom:1px solid rgba(255,255,255,.06)}
-.pruef:last-child{border:0}
-.pruef .pz{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;
-  font-size:13px;font-weight:700;background:rgba(255,255,255,.08);color:var(--mut)}
-.pruef.gut .pz{background:rgba(16,185,129,.2);color:#6ee7b7}
-.pruef.schlecht .pz{background:rgba(244,63,94,.18);color:#fda4af}
-.pruef .pt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.pruef .pt b{font-size:14px}
-.pruef .pt small{font-size:12px;color:var(--mut);line-height:1.45}
-.pruef .pw{flex:none;font-size:12.5px;font-weight:600;color:var(--mut);padding-top:2px}
-.pruef.gut .pw{color:#6ee7b7}
-.pruef.schlecht .pw{color:#fda4af}
-@media(max-width:520px){ .pruef{flex-wrap:wrap} .pruef .pw{width:100%;padding-left:36px} }
-
-/* --- Die Skala ---------------------------------------------------------- */
-
-.skalawrap{ margin:4px 0 2px }
-.skala{ width:100%; height:auto; display:block; touch-action:none; user-select:none }
-.skala.beweglich{ cursor:grab }
-.skala.beweglich:active{ cursor:grabbing }
-
-.bahn{ fill:rgba(255,255,255,.055); stroke:rgba(255,255,255,.1); stroke-width:1 }
-.zone{ stroke:none }
-.zone.z2{ fill:rgba(139,92,246,.30) }
-.zone.z3{ fill:rgba(139,92,246,.55) }
-.zone.z4{ fill:rgba(251,191,36,.92) }
-
-.strich{ stroke:rgba(255,255,255,.22); stroke-width:1.5; stroke-linecap:round }
-.strich.gross{ stroke:rgba(255,255,255,.42); stroke-width:2.5 }
-
-.nadel{ stroke:#fff; stroke-width:4; stroke-linecap:round;
-  filter:drop-shadow(0 0 6px rgba(0,0,0,.6)) }
-.nadel.tipp{ stroke:rgba(255,255,255,.35); stroke-width:3; stroke-dasharray:6 5 }
-.nadelkopf{ fill:#fff; filter:drop-shadow(0 0 6px rgba(0,0,0,.6)) }
-.achse{ fill:rgba(255,255,255,.75) }
-
-/* Die beiden Gegenbegriffe links und rechts unter der Skala */
-.pole{ display:flex; justify-content:space-between; gap:12px; margin-top:-6px }
-.pol{ font-size:15px; font-weight:700; line-height:1.25; max-width:46%;
-  padding:7px 12px; border-radius:11px; background:rgba(255,255,255,.06);
-  border:1px solid var(--line) }
-.pol.links{ text-align:left }
-.pol.rechts{ text-align:right }
-
-/* Schieberegler als zweiter Weg – besonders fuer feine Korrekturen */
-.regler{ width:100%; margin:14px 0 4px; accent-color:var(--p); height:26px }
-.zeigerwert{ text-align:center; font-size:13px; color:var(--mut); margin-bottom:12px }
-.zeigerwert b{ color:#fff; font-size:16px }
-
-/* --- Links oder rechts -------------------------------------------------- */
-
-.seitenwahl{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px }
-.seitenknopf{ display:flex; flex-direction:column; align-items:center; gap:3px;
-  padding:18px 12px; font-size:24px; line-height:1;
-  background:rgba(255,255,255,.05); border:1px solid var(--line); box-shadow:none; color:var(--tx) }
-.seitenknopf span{ font-size:14px; font-weight:700 }
-.seitenknopf small{ font-size:11.5px; color:var(--mut); font-weight:600 }
-.seitenknopf:hover:not(:disabled){ border-color:rgba(139,92,246,.6); background:rgba(139,92,246,.12) }
-
-/* --- Teams -------------------------------------------------------------- */
-
-.teamkopf{ display:flex; align-items:center; gap:8px; margin:14px 0 6px;
-  padding:8px 11px; border-radius:11px; font-size:14px }
-.teamkopf:first-child{ margin-top:0 }
-.teamkopf.ta{ background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.3) }
-.teamkopf.tb{ background:rgba(251,146,60,.14); border:1px solid rgba(251,146,60,.3) }
-.teampunkte{ margin-left:auto; font-size:12.5px; color:var(--mut); font-weight:600 }
-.tag.aktiv{ background:var(--ok); color:#04291d }
-.tag.medium{ background:rgba(139,92,246,.28); color:#c4b5fd }
-.plist li.istmedium{ background:rgba(139,92,246,.07); border-radius:10px }
-.plist li.leer{ color:var(--mut); font-size:13px; justify-content:center; padding:10px 0 }
-
-.teamwahl{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
-.teamspalte{ padding:10px; border-radius:12px; border:1px solid var(--line) }
-.teamspalte.ta{ background:rgba(56,189,248,.07) }
-.teamspalte.tb{ background:rgba(251,146,60,.07) }
-.teamspalte>b{ display:block; font-size:13px; margin-bottom:6px }
-.plist.klein li{ padding:6px 0; font-size:13px }
-@media(max-width:560px){ .teamwahl{ grid-template-columns:1fr } }
-
-/* Punktestand in der Kopfleiste und in der Auswertung */
-.chip.stand{ font-variant-numeric:tabular-nums; letter-spacing:.5px }
-.ta{ color:#7dd3fc } .tb{ color:#fdba74 }
-.standgross{ font-size:34px; font-weight:800; letter-spacing:1px;
-  font-variant-numeric:tabular-nums; line-height:1 }
-
-/* --- Kleinigkeiten ------------------------------------------------------ */
-
-.grossemoji{ font-size:40px; line-height:1; margin-bottom:8px }
-.aufl{ margin-top:14px }
-.aufl .zeile b.gut{ color:#6ee7b7 }
-.aufl .zeile b.schlecht{ color:#fda4af }
-.seg.seg2{ display:grid; grid-template-columns:1fr 1fr; gap:6px }
-
-/* Zwei Chatfenster untereinander in der rechten Spalte */
-.colB .chatfull{ max-height:46vh }
-@media(max-width:899px){ .colB .chatfull{ max-height:none } }
-
-/* Mehrere Zeiger nebeneinander bei "Jeder fuer sich" */
-.nadel.mini{ stroke-width:3; opacity:.95 }
-.minikopf{ stroke:rgba(0,0,0,.35); stroke-width:1.5 }
-.minitext{ font:700 10px system-ui,sans-serif; fill:#0b0d16; text-anchor:middle;
-  pointer-events:none }
-.tippliste li small{ display:block; font-size:11.5px; color:var(--mut); font-weight:600 }
-.tippliste .pts.ok{ color:#6ee7b7; font-weight:700 }
+@media(max-width:560px){ .zurueck{width:100%;justify-content:center} }

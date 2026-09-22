@@ -162,15 +162,12 @@ let isHost=false,roomCode="",myName="";
 let hostConn=null;       // wird beim Aufraeumen zurueckgesetzt
 let S=null;              // öffentlich sichtbarer Zustand
 let H=null;              // Host: vollständiger Zustand
+let myQuestion="";
 let screen="start";      // start | invite | connecting | game | error | kicked
 let errMsg="",banner="",fehlerRaum="";
-let draftAnswer="",draftChat="",chatOpen=LS.get("wl_chatopen",true),chatSeen=0;
-let meinZiel=null;                 /* nur das Medium kennt den Zielbereich */
-let meinTipp=null;                 /* der eigene Tipp bei "Jeder für sich" */
-let teamChat=[], teamChatOffen=false, teamChatSeen=0;
-let zeigerEntwurf=null;            /* waehrend des Ziehens, noch nicht gemeldet */
-let skinOpen=LS.get("wl_skinopen",false);
-let offeneKarten=LS.get("wl_offen",null)||{kat:false,zeit:false,skin:false,notif:false};
+let draftAnswer="",draftChat="",chatOpen=LS.get("fi_chatopen",true),chatSeen=0;
+let skinOpen=LS.get("fi_skinopen",false);
+let offeneKarten=LS.get("fi_offen",null)||{kat:false,zeit:false,skin:false,notif:false};
 let chatEmojiOpen=false;           /* Emoji-Feld im Chat auf- oder zugeklappt */
 let antwortAuf=null;               /* Nachricht, auf die gerade geantwortet wird */
 let menuFuer=null;                 /* Nachricht, deren Aktionen gerade offen sind */
