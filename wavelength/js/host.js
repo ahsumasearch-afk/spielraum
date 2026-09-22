@@ -16,6 +16,7 @@ function freshState(){
           letzteRunde:null,           // Ergebnis der letzten Runde
           punkteA:0, punkteB:0,       // Teamstand
           zielPunkte:10,              // 0 = ohne Ende
+          themen:THEMEN.map(function(t){return t.id;}),   // welche Decks im Spiel sind
           tHinweis:0, tRaten:0, deadline:0,
           reihum:0,                   // Zaehler fuer den Rollenwechsel
           chat:[], kicked:[]};
@@ -109,13 +110,24 @@ function hostKick(pid){
 
 /* ---------------------------------------------------------------- Runde */
 
+/* Alle Karten der gewaehlten Themen. */
+function vorrat(){
+  const aktiv=H.themen||[];
+  const liste=[];
+  for(let i=0;i<KARTEN.length;i++) if(aktiv.indexOf(KARTEN[i][2])>=0) liste.push(i);
+  return liste;
+}
 function zieheKarte(){
   if(!H.used) H.used=[];
-  if(H.used.length>=KARTEN.length) H.used=[];
-  let i;
-  do{ i=(Math.random()*KARTEN.length)|0; }while(H.used.indexOf(i)>=0);
+  const pool=vorrat();
+  let frei=pool.filter(i=>H.used.indexOf(i)<0);
+  if(!frei.length){                                  // Vorrat durch: neu mischen
+    H.used=H.used.filter(i=>pool.indexOf(i)<0);
+    frei=pool.slice();
+  }
+  const i=frei[(Math.random()*frei.length)|0];
   H.used.push(i);
-  return KARTEN[i].slice();
+  return [KARTEN[i][0],KARTEN[i][1]];
 }
 /* Das Ziel liegt nie ganz am Rand – sonst waere die Haelfte der Skala tot. */
 function zieheZiel(){ return Math.round(120+Math.random()*760)/10; }   // 12,0 – 88,0
@@ -136,6 +148,7 @@ function naechstesMedium(){
 }
 
 function spielbar(){
+  if(!vorrat().length) return false;                 // kein Thema gewaehlt
   const da=H.players.filter(p=>p.online).length;
   if(H.modus==="teams"){
     /* Beide Teams kommen abwechselnd dran, und das Team am Zug braucht
@@ -370,7 +383,7 @@ function publicState(){
     letzteRunde:H.letzteRunde,
     punkteA:H.punkteA, punkteB:H.punkteB, zielPunkte:H.zielPunkte,
     tHinweis:H.tHinweis||0, tRaten:H.tRaten||0, deadline:H.deadline||0,
-    kartenVorrat:KARTEN.length,
+    themen:H.themen||[], kartenVorrat:vorrat().length,
     chat:(H.chat||[]).slice(-50),
     players:H.players.map(p=>({
       pid:p.pid, name:p.name, emoji:p.emoji||"",
@@ -487,6 +500,12 @@ function hostHandle(connId,pid,msg){
       H.players=H.players.filter(x=>x.pid!==pid);
       if(H.mediumId===pid&&H.phase!=="lobby") { H.phase="lobby"; H.deadline=0; }
       broadcast(); return;
+    case "themen":
+      if(pid===myPid&&H.phase==="lobby"&&Array.isArray(msg.ids)){
+        const gueltig=THEMEN.map(t=>t.id);
+        H.themen=msg.ids.filter(x=>gueltig.indexOf(x)>=0);
+        broadcast();
+      } return;
     case "modus":
       if(pid===myPid&&H.phase==="lobby"&&(msg.m==="teams"||msg.m==="einzeln")){
         H.modus=msg.m; broadcast();

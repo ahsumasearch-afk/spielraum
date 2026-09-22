@@ -197,6 +197,7 @@ function oeffneRaum(code,restore){
     H=restore; H.kicked=H.kicked||[]; H.chat=H.chat||[];
     H.teamchat=H.teamchat||{A:[],B:[]};
     H.used=H.used||[]; H.tipps=H.tipps||{};
+    if(!Array.isArray(H.themen)||!H.themen.length) H.themen=THEMEN.map(function(t){return t.id;});
     H.modus = H.modus==="einzeln" ? "einzeln" : "teams";
     H.punkteA=H.punkteA||0; H.punkteB=H.punkteB||0;
     H.zielPunkte = typeof H.zielPunkte==="number" ? H.zielPunkte : 10;

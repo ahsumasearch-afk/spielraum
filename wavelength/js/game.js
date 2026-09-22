@@ -456,6 +456,21 @@ function viewLobby(){
     ${isHost?`<button id="mischen" class="sec">Teams neu auslosen</button>`:""}
     <div class="note">In beiden Teams müssen mindestens zwei Leute sein: Sie kommen abwechselnd dran, und wer am Zug ist, braucht jemanden fürs Medium und jemanden zum Raten. Also ab vier Spielern.</div>`;
 
+  const aktivThema=id=>(S.themen||[]).indexOf(id)>=0;
+  const alleThemen=(S.themen||[]).length===THEMEN.length;
+  const themenInhalt=`<div class="katgrid">${THEMEN.map(t=>{
+      const n=KARTEN.filter(k=>k[2]===t.id).length;
+      const bsp=KARTEN.find(k=>k[2]===t.id);
+      return `<button class="katbtn ${aktivThema(t.id)?"on":""}" data-thema="${t.id}" ${isHost?"":"disabled"}>
+        <span class="kate">${t.emoji}</span>
+        <span class="katn">${esc(t.name)}<small>${n} Karten · ${esc(bsp[0])} ↔ ${esc(bsp[1])}</small></span>
+        <span class="hak">${aktivThema(t.id)?"✓":""}</span></button>`;
+    }).join("")}</div>
+    ${isHost?`<div class="katact">
+       <button id="themalle" class="sec">Alle auswählen</button>
+       <button id="themnix" class="sec">Alle abwählen</button>
+     </div>`:""}`;
+
   const skinInhalt=`<div id="prev"></div>
      <label style="margin-top:14px">Emoji</label>
      <div class="emogrid" id="emo">${EMOJIS.map(e=>
@@ -469,8 +484,10 @@ function viewLobby(){
        </label></div>`;
 
   const zuwenig = teams ? (a<2||b<2) : on<2;
+  const ohneThema = !S.kartenVorrat;
   const startKnopf=n=>isHost
-    ? `<button id="go${n}" ${zuwenig?"disabled":""}>Runde starten</button>`+
+    ? `<button id="go${n}" ${zuwenig||ohneThema?"disabled":""}>Runde starten</button>`+
+      (ohneThema?`<div class="note" style="text-align:center">Wähle mindestens ein Thema aus.</div>`:"")+
       (zuwenig?`<div class="note" style="text-align:center">${teams
         ? `In beiden Teams müssen mindestens zwei Leute sein – eines gibt den Hinweis, das andere rät. Gerade: ${a} gegen ${b}. Zu zweit oder zu dritt passt „Jeder für sich“ besser.`
         : "Ihr braucht mindestens zwei Spieler: einer gibt den Hinweis, die anderen raten."}</div>`:"")
@@ -484,6 +501,10 @@ function viewLobby(){
          und die anderen drehen den Zeiger dorthin, wo sie das Ziel vermuten. Je näher, desto mehr Punkte:
          <b>4</b> im Zentrum, dann 3 und 2 nach außen.</div>
      </div>`+
+    klapp("themen","Themen",themenInhalt,
+          (S.themen||[]).length===0 ? "keins gewählt"
+            : alleThemen ? `alle · ${S.kartenVorrat} Karten`
+            : `${S.themen.length} von ${THEMEN.length} · ${S.kartenVorrat} Karten`)+
     klapp("spiel","Spielart & Ziel",spielInhalt,
           `${teams?"zwei Teams":"jeder für sich"} · ${S.zielPunkte?"bis "+S.zielPunkte:"ohne Ende"}`)+
     (teams?klapp("teams","Teams",teamInhalt,`${a} gegen ${b}`):"")+
@@ -505,6 +526,17 @@ function viewLobby(){
     LS.set("wl_offen",offeneKarten); render();
   });
   if(el("notif")) el("notif").onclick=askNotify;
+  if(isHost){
+    app.querySelectorAll("[data-thema]").forEach(b=>b.onclick=()=>{
+      const id=b.dataset.thema;
+      const liste=(S.themen||[]).slice();
+      const i=liste.indexOf(id);
+      if(i>=0) liste.splice(i,1); else liste.push(id);
+      act({t:"themen",ids:liste});
+    });
+    if(el("themalle")) el("themalle").onclick=()=>act({t:"themen",ids:THEMEN.map(t=>t.id)});
+    if(el("themnix"))  el("themnix").onclick=()=>act({t:"themen",ids:[]});
+  }
   app.querySelectorAll("[data-modus]").forEach(b=>b.onclick=()=>act({t:"modus",m:b.dataset.modus}));
   app.querySelectorAll("[data-ziel]").forEach(b=>b.onclick=()=>act({t:"ziel",n:+b.dataset.ziel}));
   if(el("zielset")) el("zielset").onclick=()=>{

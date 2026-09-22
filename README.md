@@ -84,7 +84,10 @@ mind-match/         das Spiel (statisch, kein Build)
   js/screens.js     Start-, Einladungs- und Fehlerbildschirme
   js/game.js        die Spielbildschirme
   js/app.js         Start
-wavelength/         gleicher Aufbau; js/karten.js hält die 232 Begriffspaare
+wavelength/         gleicher Aufbau; js/karten.js hält 232 Begriffspaare in
+                    acht Themen (Allgemein, Humor & Peinlich, Essen & Trinken,
+                    Filme/Musik/Serien, Alltag & Dinge, Menschen & Gefühle,
+                    Orte & Unterwegs, Technik & Internet)
 ```
 
 Bei jeder Änderung wird die Versionsnummer in `mind-match/index.html`
