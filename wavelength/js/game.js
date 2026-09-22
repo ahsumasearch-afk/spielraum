@@ -125,7 +125,8 @@ function skalaBedienen(beiAenderung, beiLoslassen){
 /* ---------- Kopfleiste und Rahmen ---------- */
 
 function topbar(){
-  const unread=Math.max(0,(S.chat||[]).length-chatSeen);
+  const unread=Math.max(0,(S.chat||[]).length-chatSeen)
+              +Math.max(0,(teamChat||[]).length-teamChatSeen);
   const schritte=["hinweis","raten","seite","aufloesung"];
   const idx=schritte.indexOf(S.phase);
   const stand = S.modus==="teams"
@@ -156,57 +157,76 @@ function frame(main,players,chat){
 
 /* ---------- Chat ---------- */
 
-/* Ein Chatfenster, zweimal genutzt: einmal fuer alle, einmal fuers Team. */
-function chatBlock(kennung,titel,msgs,offen,ungelesen){
-  const team = kennung==="team";
-  if(!offen) return `<div class="card tight rise" id="chatcard-${kennung}">
-    <div data-chathead="${kennung}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
-      <b style="font-size:15px">${titel}</b>
-      <span class="pts">${ungelesen?`<span class="bdg" style="background:var(--p);color:#fff;padding:1px 7px;border-radius:99px">${ungelesen} neu</span>`:`${msgs.length} Nachrichten · öffnen`}</span>
-    </div></div>`;
-  return `<div class="card rise chatfull" id="chatcard-${kennung}">
-    <div data-chathead="${kennung}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <b style="font-size:15px">${titel}</b><span class="pts">zuklappen</span></div>
+/* Ein Chatfenster mit zwei Reitern: einmal fuer alle, einmal nur fuers Team.
+   Auf dem Reiter sieht man, ob dort etwas Neues liegt. */
+function chatSpalte(){
+  const teams=S.modus==="teams";
+  const me=S.players.find(p=>p.pid===myPid);
+  const listen={
+    alle:{titel:"Alle", msgs:S.chat||[], neu:Math.max(0,(S.chat||[]).length-chatSeen)},
+    team:{titel:me?teamName(me.team):"Team", msgs:teamChat||[],
+          neu:Math.max(0,(teamChat||[]).length-teamChatSeen)}
+  };
+  if(!teams) chatTab="alle";
+  const aktiv=listen[chatTab]||listen.alle;
+
+  /* Der gerade sichtbare Reiter gilt als gelesen. */
+  if(chatOpen){
+    if(chatTab==="team") teamChatSeen=(teamChat||[]).length;
+    else chatSeen=(S.chat||[]).length;
+    aktiv.neu=0;
+  }
+
+  const reiter=`<div class="chattabs" role="tablist">
+      ${["alle"].concat(teams?["team"]:[]).map(k=>`
+        <button class="chattab ${chatTab===k?"on":""}" data-chattab="${k}" role="tab"
+                aria-selected="${chatTab===k}">
+          ${k==="team"?"🛡 ":""}${esc(listen[k].titel)}
+          ${listen[k].neu?`<span class="bdg">${listen[k].neu}</span>`:""}
+        </button>`).join("")}
+      <button class="chatklapp" data-chathead="auf">${chatOpen?"zuklappen":"öffnen"}</button>
+    </div>`;
+
+  if(!chatOpen){
+    const gesamtNeu=listen.alle.neu+(teams?listen.team.neu:0);
+    return `<div class="card tight rise" id="chatcard">${reiter}
+      <div class="pts" style="margin-top:8px">${gesamtNeu
+        ? gesamtNeu+" neue Nachrichten" : aktiv.msgs.length+" Nachrichten"}</div></div>`;
+  }
+
+  const k=chatTab;
+  return `<div class="card rise chatfull" id="chatcard">${reiter}
     <div class="chat-log">${
-      msgs.length?msgs.map(m=>{
+      aktiv.msgs.length?aktiv.msgs.map(m=>{
         const mein=m.pid===myPid;
         const spieler=S.players.find(x=>x.pid===m.pid)||{};
         const reaktionen=Object.keys(m.r||{});
-        return `<div class="msg ${mein?"me":""}" data-mid="${esc(m.id)}" data-liste="${kennung}">
+        return `<div class="msg ${mein?"me":""}" data-mid="${esc(m.id)}">
           ${avatar(Object.assign({pid:m.pid,name:m.name},spieler))}
           <div class="bub">
             ${m.re?`<div class="zitat"><b>${esc(m.re.name)}</b>${esc(m.re.text)}</div>`:""}
             <div class="au">${esc(m.name)} <span class="uhr">${uhrzeit(m.ts)}</span></div>
             <div class="tx">${esc(m.text)}</div>
             ${reaktionen.length?`<div class="reakt">${reaktionen.map(e=>
-               `<button class="rbtn ${(m.r[e]||[]).indexOf(myPid)>=0?"on":""}" data-re="${esc(m.id)}" data-remo="${e}" data-reteam="${team?1:0}">${e} ${m.r[e].length}</button>`).join("")}</div>`:""}
+               `<button class="rbtn ${(m.r[e]||[]).indexOf(myPid)>=0?"on":""}" data-re="${esc(m.id)}" data-remo="${e}" data-reteam="${k==="team"?1:0}">${e} ${m.r[e].length}</button>`).join("")}</div>`:""}
             ${menuFuer===m.id?`<div class="mact">
-              <button data-antw="${esc(m.id)}" data-aliste="${kennung}">↩ Antworten</button>
-              ${REAKTIONEN.map(e=>`<button data-re="${esc(m.id)}" data-remo="${e}" data-reteam="${team?1:0}">${e}</button>`).join("")}
+              <button data-antw="${esc(m.id)}" data-aliste="${k}">↩ Antworten</button>
+              ${REAKTIONEN.map(e=>`<button data-re="${esc(m.id)}" data-remo="${e}" data-reteam="${k==="team"?1:0}">${e}</button>`).join("")}
             </div>`:""}
           </div></div>`;
       }).join("")
-      :`<div class="chat-empty">Noch nichts geschrieben.</div>`}</div>
-    ${antwortAuf&&antwortAuf.liste===kennung?`<div class="antwortbar"><div class="zitat"><b>${esc(antwortAuf.name)}</b>${esc(antwortAuf.text)}</div>
+      :`<div class="chat-empty">${k==="team"
+          ? "Hier liest nur dein Team mit."
+          : "Noch nichts geschrieben."}</div>`}</div>
+    ${antwortAuf&&antwortAuf.liste===k?`<div class="antwortbar"><div class="zitat"><b>${esc(antwortAuf.name)}</b>${esc(antwortAuf.text)}</div>
        <button data-antwx="1" title="Abbrechen">✕</button></div>`:""}
-    ${chatEmojiOpen===kennung?`<div class="chatemo">${CHATEMOJIS.map(e=>
-        `<button data-ce="${e}" data-celiste="${kennung}">${e}</button>`).join("")}</div>`:""}
+    ${chatEmojiOpen===k?`<div class="chatemo">${CHATEMOJIS.map(e=>
+        `<button data-ce="${e}" data-celiste="${k}">${e}</button>`).join("")}</div>`:""}
     <div class="chat-in" style="flex:none">
-      <button data-ceb="${kennung}" class="emobtn" title="Emoji einfügen">${chatEmojiOpen===kennung?"✕":"🙂"}</button>
-      <input id="ci-${kennung}" maxlength="300" placeholder="Nachricht…" autocomplete="off" enterkeyhint="send">
-      <button data-csend="${kennung}">→</button></div></div>`;
-}
-function chatSpalte(){
-  const alle=S.chat||[];
-  const ungelesen=Math.max(0,alle.length-chatSeen);
-  let out=chatBlock("alle","Chat – alle",alle,chatOpen,ungelesen);
-  if(S.modus==="teams"){
-    const me=S.players.find(p=>p.pid===myPid);
-    const t=me?teamName(me.team):"Team";
-    out += chatBlock("team",t+" – nur intern",teamChat||[],teamChatOffen,
-                     Math.max(0,(teamChat||[]).length-teamChatSeen));
-  }
-  return out;
+      <button data-ceb="${k}" class="emobtn" title="Emoji einfügen">${chatEmojiOpen===k?"✕":"🙂"}</button>
+      <input id="ci-${k}" maxlength="300" placeholder="${k==="team"?"Nur an dein Team…":"Nachricht…"}"
+             autocomplete="off" enterkeyhint="send">
+      <button data-csend="${k}">→</button></div></div>`;
 }
 
 /* ---------- Spielerliste ---------- */
@@ -256,14 +276,20 @@ function wire(){
   const sc=el("scrim"); if(sc) sc.onclick=shut;
   const pc=el("pclose"); if(pc) pc.onclick=shut;
   const ct=el("chattop");
-  if(ct) ct.onclick=()=>{ chatOpen=true; LS.set("wl_chatopen",true); render(); };
+  if(ct) ct.onclick=()=>{ chatOpen=true; LS.set("wl_chatopen",true); render();
+    setTimeout(()=>{ const c=el("chatcard"); if(c) c.scrollIntoView({behavior:"smooth",block:"end"}); },60); };
   wireExit();
 
   app.querySelectorAll("[data-chathead]").forEach(h=>h.onclick=()=>{
-    const k=h.dataset.chathead;
-    if(k==="team"){ teamChatOffen=!teamChatOffen; if(teamChatOffen) teamChatSeen=(teamChat||[]).length; }
-    else { chatOpen=!chatOpen; LS.set("wl_chatopen",chatOpen); }
+    chatOpen=!chatOpen; LS.set("wl_chatopen",chatOpen); render();
+  });
+  app.querySelectorAll("[data-chattab]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.chattab;
+    if(chatTab===k&&chatOpen) return;
+    chatTab=k; chatOpen=true; LS.set("wl_chatopen",true);
+    antwortAuf=null; chatEmojiOpen=false;
     render();
+    setTimeout(()=>{ const f=el("ci-"+k); if(f) f.focus(); },40);
   });
   app.querySelectorAll("[data-ceb]").forEach(b=>b.onclick=()=>{
     const k=b.dataset.ceb;
@@ -341,11 +367,32 @@ function klapp(id,titel,inhalt,kurz,vorne){
   </div>`;
 }
 function zeitKurz(v){ return v?secLabel(v):"ohne"; }
-function uhrCard(titel){
+
+/* Was die Uhr gerade misst – haengt an der Phase. */
+function uhrTitel(){
+  if(S.phase==="hinweis")    return "Zeit für den Hinweis";
+  if(S.phase==="raten")      return "Zeit zum Raten";
+  if(S.phase==="aufloesung") return "Nächste Runde in";
+  return "Noch Zeit";
+}
+function uhrKarte(){
   if(!S.deadline) return "";
-  return `<div class="card center rise" style="padding:18px">
-    <div class="qlbl" style="margin-bottom:4px">${titel}</div>
-    <div class="bigclock clockv">${fmtTime(timeLeft()||0)}</div></div>`;
+  const rest=timeLeft()||0;
+  return `<div class="card uhrkarte ${rest<=5?"knapp":""} center rise">
+    <div class="qlbl">${uhrTitel()}</div>
+    <div class="bigclock clockv">${fmtTime(rest)}</div></div>`;
+}
+
+/* Linke Spalte: Spielerliste, darunter Uhr und die Knöpfe, die gerade dran
+   sind. So muss niemand mitten im Spiel nach unten scrollen. Auf dem Handy
+   liegt die Spalte hinter dem "Spieler"-Knopf, deshalb stehen Uhr und Knöpfe
+   dort zusätzlich im Hauptbereich. */
+function linkeSpalte(modus,aktionen){
+  return playersCard(modus)
+    + `<div class="onlydesk">${uhrKarte()}${aktionen||""}</div>`;
+}
+function mobilBereich(aktionen){
+  return `<div class="onlymob">${uhrKarte()}${aktionen||""}</div>`;
 }
 
 /* ---------- Warteraum ---------- */
@@ -544,8 +591,8 @@ function viewHinweis(me){
          <div class="note">Das Medium sieht als Einziges, wo der Zielbereich liegt, und sucht gerade einen Hinweis dafür.</div>
        </div>`;
 
-  paint(HEAD+frame(mitte+uhrCard("Zeit für den Hinweis"),
-    playersCard("spiel"),chatSpalte()));
+  paint(HEAD+frame(mitte+mobilBereich(""),
+    linkeSpalte("spiel",""),chatSpalte()));
   wire();
   if(ich){
     const hi=el("hi"); hi.focus();
@@ -608,8 +655,8 @@ function viewRaten(me){
       </div>`;
   }
 
-  paint(HEAD+frame(hinweisKarte+uhrCard("Zeit zum Raten")+unten,
-    playersCard("spiel"),chatSpalte()));
+  paint(HEAD+frame(hinweisKarte+mobilBereich("")+unten,
+    linkeSpalte("spiel",""),chatSpalte()));
   wire();
   if(darf){
     if(!schonFest) skalaBedienen(
@@ -666,7 +713,7 @@ function viewSeite(me){
            <div class="big">${esc(teamName(S.aktivesTeam==="A"?"B":"A"))} ist dran</div>
            <div class="note">Sie tippen jetzt, ob das Ziel weiter links oder weiter rechts liegt.</div>
          </div>`),
-    playersCard("spiel"),chatSpalte()));
+    linkeSpalte("spiel",""),chatSpalte()));
   wire();
   if(darf) app.querySelectorAll("[data-seite]").forEach(b=>b.onclick=()=>act({t:"seite",seite:b.dataset.seite}));
 }
@@ -703,6 +750,11 @@ function viewAufloesung(me){
   const alleZeiger = !teams&&r.ergebnisse
     ? r.ergebnisse.map(x=>({wert:x.wert, spieler:spielerVon(x.pid)})) : null;
 
+  const aktionen = darfWeiter
+    ? `<button data-weiter="1">Nächste Runde${S.deadline?" jetzt":""}</button>`
+      + (isHost?`<button data-lobby="1" class="sec">Zurück in den Warteraum</button>`:"")
+    : `<div class="card tight center note">Gleich geht die nächste Runde los.</div>`;
+
   paint(HEAD+frame(
     `<div class="card ${gut?"win":"lose"} center rise" style="padding:24px 20px">${kopf}</div>
      <div class="card rise">
@@ -732,13 +784,11 @@ function viewAufloesung(me){
         <div class="standgross"><span class="ta">${S.punkteA}</span> : <span class="tb">${S.punkteB}</span></div>
         <div class="note" style="margin-top:2px">${teamName("A")} gegen ${teamName("B")}${S.zielPunkte?` · bis ${S.zielPunkte}`:""}</div>
       </div>`:""}
-     ${darfWeiter?`<button id="weiter">Nächste Runde</button>
-        ${isHost?`<button id="lb2" class="sec">Zurück in den Warteraum</button>`:""}`
-       :`<div class="card center note rise">Gleich geht die nächste Runde los.</div>`}`,
-    playersCard(teams?"spiel":"score"),chatSpalte()));
+     ${mobilBereich(aktionen)}`,
+    linkeSpalte(teams?"spiel":"score",aktionen),chatSpalte()));
   wire();
-  if(el("weiter")) el("weiter").onclick=()=>act({t:"start"});
-  if(el("lb2")) el("lb2").onclick=()=>act({t:"lobby"});
+  app.querySelectorAll("[data-weiter]").forEach(b=>b.onclick=()=>act({t:"start"}));
+  app.querySelectorAll("[data-lobby]").forEach(b=>b.onclick=()=>act({t:"lobby"}));
 }
 
 /* ---------- Endstand ---------- */
@@ -764,12 +814,13 @@ function viewPodium(){
        <div class="platz p${i+1}"><div class="krone">${plaetze[i]}</div>${avatar(p)}
          <div class="pname">${esc(p.name)}</div><div class="ppkt">${p.score} Pkt</div></div>`).join("")}</div></div>`;
   }
-  paint(HEAD+frame(kopf+
-    (isHost?`<button id="neu">Neues Spiel starten</button>
-             <button id="lb2" class="sec">Zurück in den Warteraum</button>`
-           :`<div class="card center note rise">Der Host startet ein neues Spiel.</div>`),
-    playersCard("score"),chatSpalte()));
+  const aktionen = isHost
+    ? `<button data-neu="1">Neues Spiel starten</button>
+       <button data-lobby="1" class="sec">Zurück in den Warteraum</button>`
+    : `<div class="card tight center note">Der Host startet ein neues Spiel.</div>`;
+  paint(HEAD+frame(kopf+mobilBereich(aktionen),
+    linkeSpalte("score",aktionen),chatSpalte()));
   wire();
-  if(el("neu")) el("neu").onclick=()=>act({t:"reset"});
-  if(el("lb2")) el("lb2").onclick=()=>act({t:"lobby"});
+  app.querySelectorAll("[data-neu]").forEach(b=>b.onclick=()=>act({t:"reset"}));
+  app.querySelectorAll("[data-lobby]").forEach(b=>b.onclick=()=>act({t:"lobby"}));
 }

@@ -61,8 +61,11 @@ Zwei Spielarten:
 
 Das **Medium bekommt in beiden Spielarten keine Punkte** – es kannte das Ziel ja.
 Im Teammodus zählt der Rundenertrag trotzdem voll für sein Team.
-Es gibt einen Chat für alle und – im Teammodus – einen zweiten nur fürs eigene
-Team. Der Host stellt Spielart, Punktziel und Zeitlimits ein, Aussehen und
+Chat für alle und – im Teammodus – ein zweiter nur fürs eigene Team, beide in
+einem Fenster mit Reitern; am Reiter sieht man, wo etwas Neues liegt. Nach dem
+Aufdecken bleibt die Runde zehn Sekunden stehen und geht dann von selbst weiter
+(oder sofort per Knopf). Uhr und die Knöpfe, die gerade dran sind, stehen links
+unter der Spielerliste. Der Host stellt Spielart, Punktziel und Zeitlimits ein, Aussehen und
 Teamzugehörigkeit lassen sich im Warteraum ändern.
 
 ## Aufbau

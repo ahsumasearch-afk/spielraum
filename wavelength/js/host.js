@@ -22,6 +22,7 @@ function freshState(){
 }
 
 const GRACE=18000, QUICK=4000, BEAT=2500, DEAD=6500, HOSTDEAD=14000;
+const PAUSE=10000;   // so lange bleibt die Aufloesung stehen, dann geht es weiter
 
 const hp=pid=>H.players.find(p=>p.pid===pid);
 const mit=()=>H.players.filter(p=>!p.waiting);
@@ -216,8 +217,11 @@ function punkteFuer(abstand){
 function aufloesen(){
   if(H.modus==="teams") aufloesenTeams();
   else aufloesenEinzeln();
-  H.phase="aufloesung"; H.deadline=0;
-  if(zielErreicht()) H.phase="podium";
+  H.phase="aufloesung";
+  /* Die Auflösung bleibt kurz stehen, damit alle sie lesen können – danach
+     geht es von selbst weiter. Wer nicht warten will, drückt den Knopf. */
+  H.deadline=Date.now()+PAUSE;
+  if(zielErreicht()){ H.phase="podium"; H.deadline=0; }
   broadcast();
 }
 
@@ -324,6 +328,12 @@ function hostSweep(){
   if(H.deadline&&Date.now()>H.deadline){
     if(H.phase==="hinweis"){ hinweisGeben(H.hinweis||"—"); return; }
     if(H.phase==="raten"){ if(H.modus==="teams") zeigerFest(); else aufloesen(); return; }
+    if(H.phase==="aufloesung"){
+      H.deadline=0;
+      if(spielbar()) hostStartRound();
+      else { H.phase="lobby"; broadcast(); }   // zu wenige Leute – zurück in den Warteraum
+      return;
+    }
     H.deadline=0;
   }
   const vorher=H.phase;

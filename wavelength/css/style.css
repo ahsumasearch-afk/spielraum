@@ -509,9 +509,7 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
 .aufl .zeile b.schlecht{ color:#fda4af }
 .seg.seg2{ display:grid; grid-template-columns:1fr 1fr; gap:6px }
 
-/* Zwei Chatfenster untereinander in der rechten Spalte */
-.colB .chatfull{ max-height:46vh }
-@media(max-width:899px){ .colB .chatfull{ max-height:none } }
+
 
 /* Mehrere Zeiger nebeneinander bei "Jeder fuer sich" */
 .nadel.mini{ stroke-width:3; opacity:.95 }
@@ -520,3 +518,32 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
   pointer-events:none }
 .tippliste li small{ display:block; font-size:11.5px; color:var(--mut); font-weight:600 }
 .tippliste .pts.ok{ color:#6ee7b7; font-weight:700 }
+
+/* --- Chat mit Reitern --------------------------------------------------- */
+
+.chattabs{ display:flex; align-items:center; gap:6px; margin-bottom:12px }
+.chattab{ width:auto; flex:0 1 auto; padding:7px 13px; font-size:13px; font-weight:700;
+  border-radius:10px; background:rgba(255,255,255,.05); border:1px solid var(--line);
+  box-shadow:none; color:var(--mut); display:flex; align-items:center; gap:6px;
+  white-space:nowrap }
+.chattab:hover:not(:disabled){ color:var(--tx); background:rgba(255,255,255,.09) }
+.chattab.on{ background:rgba(139,92,246,.18); border-color:rgba(139,92,246,.5); color:#fff }
+.chattab .bdg{ background:var(--p); color:#fff; font-size:11px; font-weight:800;
+  padding:1px 6px; border-radius:99px; line-height:1.5 }
+.chattab:not(.on) .bdg{ animation:pochen 1.6s ease-in-out infinite }
+@keyframes pochen{ 50%{ transform:scale(1.12) } }
+.chatklapp{ width:auto; margin-left:auto; padding:6px 10px; font-size:12px;
+  background:none; border:0; box-shadow:none; color:var(--mut); font-weight:600 }
+.chatklapp:hover:not(:disabled){ color:var(--tx) }
+
+/* --- Uhr in der linken Spalte ------------------------------------------ */
+
+.uhrkarte{ padding:16px 14px }
+.uhrkarte .qlbl{ margin-bottom:2px }
+.uhrkarte .bigclock{ font-size:34px; line-height:1.1 }
+.uhrkarte.knapp{ border-color:rgba(251,113,133,.45); background:rgba(251,113,133,.08) }
+.uhrkarte.knapp .bigclock{ color:#fda4af }
+
+/* Die Knöpfe unter der Spielerliste sollen nicht zu wuchtig wirken. */
+.colA .onlydesk button{ font-size:15px; padding:13px }
+.colA .onlydesk .card.tight{ margin-bottom:0 }
