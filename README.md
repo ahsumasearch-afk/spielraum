@@ -47,6 +47,12 @@ eigenen Umfeld zu nennen oder etwas Privates preiszugeben.
 4. Im Teammodus tippt die Gegenseite zusätzlich, ob das Ziel weiter **links**
    oder **rechts** vom Zeiger liegt.
 
+Eine Karte ist immer eine **Skala**, kein bloßer Gegensatz: „guter Sänger ↔
+schlechter Sänger" funktioniert, weil jeder Sänger dort einen Platz hat.
+„Furz ↔ Rülpser" funktioniert nicht – dazwischen liegt nichts, und das Medium
+kann keinen Hinweis geben. Die Probe vor dem Aufnehmen neuer Karten steht als
+Kommentar in `wavelength/js/karten.js`.
+
 **Punkte:** 4 im Zentrum, 3 im Ring darum, 2 im äußeren Ring, sonst nichts.
 Ein richtiger Links-rechts-Tipp bringt der Gegenseite **+1**. Gespielt wird bis
 10, 20, 30, einer eigenen Zahl – oder ohne Ende.
@@ -84,7 +90,7 @@ mind-match/         das Spiel (statisch, kein Build)
   js/screens.js     Start-, Einladungs- und Fehlerbildschirme
   js/game.js        die Spielbildschirme
   js/app.js         Start
-wavelength/         gleicher Aufbau; js/karten.js hält 232 Begriffspaare in
+wavelength/         gleicher Aufbau; js/karten.js hält 245 Skalen-Karten in
                     acht Themen (Allgemein, Humor & Peinlich, Essen & Trinken,
                     Filme/Musik/Serien, Alltag & Dinge, Menschen & Gefühle,
                     Orte & Unterwegs, Technik & Internet)
