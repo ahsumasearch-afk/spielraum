@@ -52,7 +52,7 @@ function stateTitle(){
     return raetMit(me)?"⏳ Jetzt den Zeiger setzen!":"Das andere Team rät";
   }
   if(S.phase==="seite")      return tipptSeite(me)?"⬅ ➡ Links oder rechts?":"Die Gegenseite tippt";
-  if(S.phase==="aufloesung") return "🎯 Auflösung";
+  if(S.phase==="aufloesung") return S.spielEnde?"🏁 Letzte Runde":"🎯 Auflösung";
   if(S.phase==="podium") return "🏆 Endstand";
   return "Warteraum";
 }

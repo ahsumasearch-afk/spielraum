@@ -50,33 +50,43 @@ function skala(opt){
     striche.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="strich ${v%25?"":"gross"}"/>`);
   }
 
+  /* Der Zeiger wird einmal am linken Ende gezeichnet und dann gedreht. So
+     steckt seine Stellung in einer CSS-Eigenschaft statt in Koordinaten –
+     dadurch laesst er sich sauber animieren, und ein Abgleich der Oberflaeche
+     unterbricht die laufende Bewegung nicht. */
+  const SPITZE=punkt(0,RAUSSEN-4), FUSS=punkt(0,RINNEN-16);
+  const dreh=w=>`--w:${(w*1.8).toFixed(2)}deg`;
+
   let nadel="";
   if(zeiger!==null&&zeiger!==undefined){
-    const spitze=punkt(zeiger,RAUSSEN-4), fuss=punkt(zeiger,RINNEN-16);
-    nadel=`<line x1="${fuss.x}" y1="${fuss.y}" x2="${spitze.x}" y2="${spitze.y}" class="nadel"/>
-           <circle cx="${spitze.x}" cy="${spitze.y}" r="7" class="nadelkopf"/>`;
+    nadel=`<g class="zeigergruppe" style="${dreh(zeiger)}">
+      <line x1="${FUSS.x}" y1="${FUSS.y}" x2="${SPITZE.x}" y2="${SPITZE.y}" class="nadel"/>
+      <circle cx="${SPITZE.x}" cy="${SPITZE.y}" r="7" class="nadelkopf"/></g>`;
   }
   let tippZeichen="";
   if(tipp!==null&&tipp!==undefined){
-    const p=punkt(tipp,RAUSSEN-4), f=punkt(tipp,RINNEN-16);
-    tippZeichen=`<line x1="${f.x}" y1="${f.y}" x2="${p.x}" y2="${p.y}" class="nadel tipp"/>`;
+    tippZeichen=`<g class="zeigergruppe tippgruppe" style="${dreh(tipp)}">
+      <line x1="${FUSS.x}" y1="${FUSS.y}" x2="${SPITZE.x}" y2="${SPITZE.y}" class="nadel tipp"/></g>`;
   }
   /* Bei "Jeder fuer sich" stehen am Ende alle Zeiger nebeneinander auf der
      Skala – jeder in der Farbe seines Besitzers. */
   let vieleZeiger="";
   if(alle&&alle.length){
-    vieleZeiger=alle.map(x=>{
+    vieleZeiger=alle.map((x,i)=>{
       if(x.wert===null||x.wert===undefined) return "";
       const p=punkt(x.wert,RAUSSEN-4), f=punkt(x.wert,RINNEN-6);
       const farbe=farbeVon(x.spieler||{});
-      return `<line x1="${f.x}" y1="${f.y}" x2="${p.x}" y2="${p.y}" class="nadel mini" stroke="${farbe}"/>
-              <circle cx="${p.x}" cy="${p.y}" r="9" fill="${farbe}" class="minikopf"/>
-              <text x="${p.x}" y="${p.y+3.5}" class="minitext">${esc((x.spieler&&x.spieler.name||"?").slice(0,1).toUpperCase())}</text>`;
+      /* Der Buchstabe darf nicht mitdrehen, deshalb stehen diese Zeiger fest
+         an ihrer Stelle und blenden stattdessen nacheinander ein. */
+      return `<g class="minizeiger" style="--d:${(0.55+i*0.16).toFixed(2)}s">
+        <line x1="${f.x}" y1="${f.y}" x2="${p.x}" y2="${p.y}" class="nadel mini" stroke="${farbe}"/>
+        <circle cx="${p.x}" cy="${p.y}" r="9" fill="${farbe}" class="minikopf"/>
+        <text x="${p.x}" y="${p.y+3.5}" class="minitext">${esc((x.spieler&&x.spieler.name||"?").slice(0,1).toUpperCase())}</text></g>`;
     }).join("");
   }
 
   return `<div class="skalawrap">
-    <svg viewBox="0 0 400 214" class="skala ${beweglich?"beweglich":""}" id="skala"
+    <svg viewBox="0 0 400 214" class="skala ${beweglich?"beweglich":""}${opt.aufdecken?" aufdecken":""}${opt.treffer?" treffer":""}" id="skala"
          role="img" aria-label="Skala von ${esc(karte?karte[0]:"links")} bis ${esc(karte?karte[1]:"rechts")}">
       <path d="${ringstueck(0,100,RINNEN,RAUSSEN)}" class="bahn"/>
       ${zonen}
@@ -372,7 +382,7 @@ function zeitKurz(v){ return v?secLabel(v):"ohne"; }
 function uhrTitel(){
   if(S.phase==="hinweis")    return "Zeit für den Hinweis";
   if(S.phase==="raten")      return "Zeit zum Raten";
-  if(S.phase==="aufloesung") return "Nächste Runde in";
+  if(S.phase==="aufloesung") return S.spielEnde?"Endstand in":"Nächste Runde in";
   return "Noch Zeit";
 }
 function uhrKarte(){
@@ -709,13 +719,10 @@ function viewRaten(me){
     };
   }
 }
-/* Nadel waehrend des Ziehens direkt verschieben, ohne alles neu zu zeichnen. */
+/* Waehrend des Ziehens wird nur der Drehwinkel nachgefuehrt. */
 function zeichneNadel(svg,wert){
-  const spitze=punkt(wert,RAUSSEN-4), fuss=punkt(wert,RINNEN-16);
-  const linie=svg.querySelector(".nadel:not(.tipp)"), kopf=svg.querySelector(".nadelkopf");
-  if(linie){ linie.setAttribute("x1",fuss.x); linie.setAttribute("y1",fuss.y);
-             linie.setAttribute("x2",spitze.x); linie.setAttribute("y2",spitze.y); }
-  if(kopf){ kopf.setAttribute("cx",spitze.x); kopf.setAttribute("cy",spitze.y); }
+  const g=svg.querySelector(".zeigergruppe:not(.tippgruppe)");
+  if(g) g.style.setProperty("--w",(wert*1.8).toFixed(2)+"deg");
 }
 
 /* ---------- Links oder rechts? ---------- */
@@ -756,14 +763,14 @@ function viewAufloesung(me){
   const r=S.letzteRunde||{};
   const medium=S.players.find(p=>p.pid===r.mediumId)||{name:"?"};
   const teams=S.modus==="teams";
-  const darfWeiter=isHost||binMedium();
+  const darfWeiter=isHost;          // nur der Host schaltet weiter
   const spielerVon=pid=>S.players.find(p=>p.pid===pid)||{name:"?"};
 
   /* Bei "Jeder für sich" zählt für die Überschrift der eigene Tipp. */
   const meinErgebnis = !teams && r.ergebnisse
     ? r.ergebnisse.find(x=>x.pid===myPid) : null;
   const gut = teams ? r.treffer>0 : (meinErgebnis ? meinErgebnis.punkte>0 : r.treffer>0);
-  const wort=n=>n===4?"Volltreffer":n===3?"Ganz nah dran":n===2?"Noch im Ziel":"Daneben";
+  const wort=n=>n===4?"Volltreffer":n===3?"Ganz nah dran":n===2?"Noch im Ziel":"Knapp daneben";
 
   const kopf = teams
     ? `<div class="verdict ${gut?"g":"r"}">${wort(r.treffer)}</div>
@@ -783,14 +790,21 @@ function viewAufloesung(me){
     ? r.ergebnisse.map(x=>({wert:x.wert, spieler:spielerVon(x.pid)})) : null;
 
   const aktionen = darfWeiter
-    ? `<button data-weiter="1">Nächste Runde${S.deadline?" jetzt":""}</button>`
-      + (isHost?`<button data-lobby="1" class="sec">Zurück in den Warteraum</button>`:"")
-    : `<div class="card tight center note">Gleich geht die nächste Runde los.</div>`;
+    ? `<button data-weiter="1">${S.spielEnde?"Endstand ansehen":(S.deadline?"Nächste Runde jetzt":"Nächste Runde")}</button>`
+      + `<button data-lobby="1" class="sec">Zurück in den Warteraum</button>`
+    : `<div class="card tight center note">${S.spielEnde
+        ? "Gleich kommt der Endstand." : "Gleich geht die nächste Runde los."}</div>`;
+
+  /* Die Auflösung wird einmal je Runde aufgezogen – nicht bei jedem Abgleich
+     der Oberfläche erneut. Darum hängt die Animation an der Rundennummer. */
+  const volltreffer = teams ? r.treffer===4
+    : !!(r.ergebnisse&&r.ergebnisse.some(x=>x.punkte===4));
 
   paint(HEAD+frame(
     `<div class="card ${gut?"win":"lose"} center rise" style="padding:24px 20px">${kopf}</div>
      <div class="card rise">
-       ${skala({ziel:r.ziel, zeiger:teams?r.zeiger:null, alle:alleZeiger, karte:r.karte, beweglich:false})}
+       ${skala({ziel:r.ziel, zeiger:teams?r.zeiger:null, alle:alleZeiger, karte:r.karte,
+                beweglich:false, aufdecken:true, treffer:volltreffer})}
        <div class="aufl">
          <div class="zeile"><span class="pts">📡 Hinweis</span><b>„${esc(r.hinweis||"")}“</b></div>
          <div class="zeile"><span class="pts">vom Medium</span><b>${esc(medium.name)}</b></div>

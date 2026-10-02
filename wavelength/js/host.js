@@ -129,8 +129,9 @@ function zieheKarte(){
   H.used.push(i);
   return [KARTEN[i][0],KARTEN[i][1]];
 }
-/* Das Ziel liegt nie ganz am Rand – sonst waere die Haelfte der Skala tot. */
-function zieheZiel(){ return Math.round(120+Math.random()*760)/10; }   // 12,0 – 88,0
+/* Das Ziel darf ueberall liegen – auch so weit aussen, dass der gelbe Kern
+   direkt am Rand klebt. Nur der Kern selbst bleibt vollstaendig sichtbar. */
+function zieheZiel(){ return Math.round(20+Math.random()*960)/10; }    // 2,0 – 98,0
 
 /* Reihum: jede Runde ist ein anderer Spieler das Medium. Im Teammodus
    wechselt dabei auch das ratende Team. */
@@ -168,7 +169,7 @@ function hostStartRound(){
   H.karte=zieheKarte();
   H.ziel=zieheZiel();
   H.hinweis=""; H.zeiger=50; H.zeigerGesetzt=false; H.seite=null; H.letzteRunde=null;
-  H.tipps={};
+  H.tipps={}; H.spielEnde=false;
   H.players.forEach(p=>{ p.gesendeterTipp=null; });
   H.phase="hinweis"; setDeadline();
   clearTimeout(graceTimer);
@@ -225,16 +226,17 @@ function punkteFuer(abstand){
   if(abstand<=2)   return 4;
   if(abstand<=5)   return 3;
   if(abstand<=8.5) return 2;
-  return 0;
+  return 1;          // wer danebenliegt, geht trotzdem nicht leer aus
 }
 function aufloesen(){
   if(H.modus==="teams") aufloesenTeams();
   else aufloesenEinzeln();
   H.phase="aufloesung";
   /* Die Auflösung bleibt kurz stehen, damit alle sie lesen können – danach
-     geht es von selbst weiter. Wer nicht warten will, drückt den Knopf. */
+     geht es von selbst weiter. Wer nicht warten will, drückt den Knopf.
+     Auch die letzte Runde wird erst aufgedeckt; das Podest kommt danach. */
+  H.spielEnde=zielErreicht();
   H.deadline=Date.now()+PAUSE;
-  if(zielErreicht()){ H.phase="podium"; H.deadline=0; }
   broadcast();
 }
 
@@ -343,6 +345,7 @@ function hostSweep(){
     if(H.phase==="raten"){ if(H.modus==="teams") zeigerFest(); else aufloesen(); return; }
     if(H.phase==="aufloesung"){
       H.deadline=0;
+      if(H.spielEnde){ H.spielEnde=false; H.phase="podium"; broadcast(); return; }
       if(spielbar()) hostStartRound();
       else { H.phase="lobby"; broadcast(); }   // zu wenige Leute – zurück in den Warteraum
       return;
@@ -380,7 +383,7 @@ function publicState(){
     /* Das Ziel geht erst bei der Aufloesung an alle. Vorher bekommt es nur
        das Medium – auf seinem eigenen Weg, nicht im gemeinsamen Zustand. */
     ziel: zeigen ? H.ziel : null,
-    letzteRunde:H.letzteRunde,
+    letzteRunde:H.letzteRunde, spielEnde:!!H.spielEnde,
     punkteA:H.punkteA, punkteB:H.punkteB, zielPunkte:H.zielPunkte,
     tHinweis:H.tHinweis||0, tRaten:H.tRaten||0, deadline:H.deadline||0,
     themen:H.themen||[], kartenVorrat:vorrat().length,
@@ -492,7 +495,11 @@ function hostHandle(connId,pid,msg){
         broadcast(); }
       return;
     case "start":
-      if(pid===myPid&&(H.phase==="lobby"||H.phase==="aufloesung")) hostStartRound();
+      if(pid!==myPid) return;
+      if(H.phase==="aufloesung"&&H.spielEnde){
+        H.spielEnde=false; H.phase="podium"; H.deadline=0; broadcast(); return;
+      }
+      if(H.phase==="lobby"||H.phase==="aufloesung") hostStartRound();
       return;
     case "lobby":  if(pid===myPid){ H.phase="lobby"; H.deadline=0; broadcast(); } return;
     case "kick":   if(pid===myPid) hostKick(msg.pid); return;

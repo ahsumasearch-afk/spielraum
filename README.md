@@ -53,9 +53,14 @@ schlechter Sänger" funktioniert, weil jeder Sänger dort einen Platz hat.
 kann keinen Hinweis geben. Die Probe vor dem Aufnehmen neuer Karten steht als
 Kommentar in `wavelength/js/karten.js`.
 
-**Punkte:** 4 im Zentrum, 3 im Ring darum, 2 im äußeren Ring, sonst nichts.
+**Punkte:** 4 im Zentrum, 3 im Ring darum, 2 im äußeren Ring, 1 für alles
+darüber hinaus – ganz leer geht niemand aus, der getippt hat.
 Ein richtiger Links-rechts-Tipp bringt der Gegenseite **+1**. Gespielt wird bis
-10, 20, 30, einer eigenen Zahl – oder ohne Ende.
+10, 20, 30, einer eigenen Zahl – oder ohne Ende. Auch die letzte Runde wird
+erst aufgedeckt; das Podest kommt danach.
+
+Das Ziel kann überall liegen, auch so weit außen, dass der gelbe Kern direkt am
+Rand klebt.
 
 Zwei Spielarten:
 
