@@ -163,7 +163,7 @@ let hostConn=null;       // wird beim Aufraeumen zurueckgesetzt
 let S=null;              // öffentlich sichtbarer Zustand
 let H=null;              // Host: vollständiger Zustand
 let screen="start";      // start | invite | connecting | game | error | kicked
-let errMsg="",banner="",fehlerRaum="";
+let errMsg="",banner="",fehlerRaum="",neueFassung="";
 let draftAnswer="",draftChat="",chatOpen=LS.get("wl_chatopen",true),chatSeen=0;
 let meinZiel=null;                 /* nur das Medium kennt den Zielbereich */
 let meinTipp=null;                 /* der eigene Tipp bei "Jeder für sich" */

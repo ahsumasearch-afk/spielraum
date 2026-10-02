@@ -163,7 +163,7 @@ let hostConn=null;       // wird beim Aufraeumen zurueckgesetzt
 let S=null;              // öffentlich sichtbarer Zustand
 let H=null;              // Host: vollständiger Zustand
 let screen="start";      // start | invite | connecting | game | error | kicked
-let errMsg="",banner="",fehlerRaum="";
+let errMsg="",banner="",fehlerRaum="",neueFassung="";
 let draftAnswer="",draftChat="",chatOpen=LS.get("mm_chatopen",true),chatSeen=0;
 let skinOpen=LS.get("mm_skinopen",false);
 let offeneKarten=LS.get("mm_offen",null)||{kat:false,zeit:false,skin:false,notif:false};

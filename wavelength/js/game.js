@@ -116,10 +116,16 @@ function skalaBedienen(beiAenderung, beiLoslassen){
   };
   if(svg){
     let zieht=false;
-    const start=ev=>{ zieht=true; svg.setPointerCapture&&svg.setPointerCapture(ev.pointerId);
+    /* Beim Abgleich der Oberflaeche bleibt derselbe SVG-Knoten bestehen – und
+       damit auch die hier angehaengten Behandler. Nach dem Abgeben duerfte man
+       sonst weiterziehen, obwohl der Tipp schon abgeschickt ist. Deshalb fragt
+       jeder Griff neu nach, ob die Skala ueberhaupt noch beweglich ist. */
+    const erlaubt=()=>svg.classList.contains("beweglich");
+    const start=ev=>{ if(!erlaubt()) return;
+      zieht=true; svg.setPointerCapture&&svg.setPointerCapture(ev.pointerId);
       beiAenderung(ausPunkt(ev)); ev.preventDefault(); };
-    const zug=ev=>{ if(zieht) beiAenderung(ausPunkt(ev)); };
-    const ende=()=>{ if(!zieht) return; zieht=false; beiLoslassen&&beiLoslassen(); };
+    const zug=ev=>{ if(zieht&&erlaubt()) beiAenderung(ausPunkt(ev)); };
+    const ende=()=>{ if(!zieht) return; zieht=false; if(erlaubt()) beiLoslassen&&beiLoslassen(); };
     svg.addEventListener("pointerdown",start);
     svg.addEventListener("pointermove",zug);
     svg.addEventListener("pointerup",ende);
@@ -657,6 +663,7 @@ function viewRaten(me){
              : einzeln ? (meinTipp!==null?meinTipp:50)
              : S.zeiger;
   const schonFest = einzeln && (S.fertig||[]).indexOf(myPid)>=0;
+  if(schonFest) zeigerEntwurf=null;      // ab jetzt zaehlt der abgegebene Wert
   const offen = einzeln
     ? S.players.filter(p=>!p.waiting&&p.pid!==S.mediumId&&(S.fertig||[]).indexOf(p.pid)<0).length
     : 0;

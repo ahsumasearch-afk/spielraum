@@ -408,3 +408,11 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
 .solo .zurueck,.start .zurueck{display:flex;width:max-content;margin:0 auto 18px}
 /* Auf dem Handy die volle Breite – da ist ein schmaler Pfeil schnell uebersehen. */
 @media(max-width:560px){ .zurueck{width:100%;justify-content:center} }
+
+/* Hinweis auf eine neuere Fassung – sitzt ganz oben und ist antippbar. */
+.warn.neu{ width:100%; margin:0 0 10px; display:block; text-align:center;
+  cursor:pointer; border:1px solid rgba(139,92,246,.5);
+  background:rgba(139,92,246,.16); color:#ddd6fe;
+  font-size:13.5px; font-weight:600; line-height:1.45; padding:11px 14px;
+  border-radius:12px; box-shadow:none }
+.warn.neu:hover{ background:rgba(139,92,246,.26); color:#fff }

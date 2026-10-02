@@ -469,3 +469,11 @@ button.pick:hover:not(:disabled){border-color:rgba(139,92,246,.6);background:rgb
 .pruef.gut .pw{color:#6ee7b7}
 .pruef.schlecht .pw{color:#fda4af}
 @media(max-width:520px){ .pruef{flex-wrap:wrap} .pruef .pw{width:100%;padding-left:36px} }
+
+/* Hinweis auf eine neuere Fassung – sitzt ganz oben und ist antippbar. */
+.warn.neu{ width:100%; margin:0 0 10px; display:block; text-align:center;
+  cursor:pointer; border:1px solid rgba(139,92,246,.5);
+  background:rgba(139,92,246,.16); color:#ddd6fe;
+  font-size:13.5px; font-weight:600; line-height:1.45; padding:11px 14px;
+  border-radius:12px; box-shadow:none }
+.warn.neu:hover{ background:rgba(139,92,246,.26); color:#fff }

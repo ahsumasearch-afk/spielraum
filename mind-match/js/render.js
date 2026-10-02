@@ -34,7 +34,10 @@ function patch(alt,neu){
   }
 }
 function paint(html){
-  const voll=(banner?`<div class="warn">${esc(banner)}</div>`:"")+html;
+  const voll=(banner?`<div class="warn">${esc(banner)}</div>`:"")
+    +(neueFassung?`<button class="warn neu" id="neuladen">Es gibt eine neuere Fassung (${esc(neueFassung)}) –
+         hier tippen zum Aktualisieren. Dein Raum bleibt erhalten.</button>`:"")
+    +html;
 
   // Chat nur mitscrollen, wenn der Leser ohnehin unten steht
   const logAlt=el("clog");
@@ -50,6 +53,8 @@ function paint(html){
   if(ci){ if(document.activeElement!==ci) ci.value=draftChat; ci.oninput=()=>draftChat=ci.value; }
   const log=el("clog");
   if(log&&amEnde) log.scrollTop=log.scrollHeight;
+  const nl=el("neuladen");
+  if(nl) nl.onclick=()=>location.reload();
 }
 function render(){
   if(screen==="start")      return viewStart();
