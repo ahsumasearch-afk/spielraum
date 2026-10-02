@@ -87,6 +87,7 @@ function skala(opt){
 
   return `<div class="skalawrap">
     <svg viewBox="0 0 400 214" class="skala ${beweglich?"beweglich":""}${opt.aufdecken?" aufdecken":""}${opt.treffer?" treffer":""}" id="skala"
+         style="--von:${(ziel!==null&&ziel!==undefined&&ziel>=50)?"":"-"}46px"
          role="img" aria-label="Skala von ${esc(karte?karte[0]:"links")} bis ${esc(karte?karte[1]:"rechts")}">
       <path d="${ringstueck(0,100,RINNEN,RAUSSEN)}" class="bahn"/>
       ${zonen}
